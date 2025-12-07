@@ -1,0 +1,126 @@
+# Child pipeline du service "users"
+# Utilise les modèles de pipeline pour les tâches Docker et le déploiement
+
+# Variables définies par l'appelant
+#
+#   IMAGENAME:      nom de l'image Docker (et du dossier contenant le code source)
+#   IMAGETAG:       tag de l'image Docker (par exemple, $CI_COMMIT_SHORT_SHA ou "latest")
+#   HOSTPORT:       port exposé sur l'hôte pour accéder au service via Docker
+#   CONTAINERPORT:  port exposé dans le conteneur Docker
+#   URL_PATH:       chemin URL pour vérifier que le service est bien démarré (ex: "api/v1/health")
+#   CHART_DIR:      repertoire contenant les fichiers du Chart Helm
+#   DEPLOY_NAME:    nom de déploiment Helm (release name) du mciro-service
+#   HOSTNAME:       nom d'hôte utilisé pour générer le FQDN du service (ex: api, dashboard, smtp)
+#   DOMAIN:         domaine où déployer le service (ex: dev.mondomaine.com)
+#
+
+
+include:
+  - local: '/ci-templates/.ci-var-precheck.yml'
+  - local: '/ci-templates/.ci-docker-pipeline-template.yml'
+
+stages:
+  - pre_checks  # importé
+  - build       # importé
+  - run         # importé
+  - push        # importé
+  - deploy_dev
+  - deploy_qa
+  - deploy_staging
+  - deploy_prod
+
+
+# ----------------------------------------------
+# Variables pour le job 'run' du template inclus
+# ----------------------------------------------
+run:
+  variables:
+    # HOSTPORT: $HOSTPORT
+    # CONTAINERPORT: "80"
+    # URL_PATH: ""
+
+
+# ----------------------------------------------
+# Deploiement sur DEV
+# ----------------------------------------------
+deploy:
+  stage: deploy_dev
+  trigger:
+    # downstream pipeline
+    include: "ci-templates/.ci-deploy-pipeline-template.yml"
+    strategy: depend
+  variables:
+    ENV_NAME: dev/$CI_COMMIT_REF_NAME
+    IMAGENAME: $IMAGENAME
+    TAG: $IMAGETAG
+    NAMESPACE: dev
+    DEPLOY_DOMAIN: dev.$DOMAIN
+    # CHART_DIR: $CHART_DIR
+    # URL_PATH: ""  
+
+
+# ----------------------------------------------
+# Quality Assurance
+# ----------------------------------------------
+deploy_qa:
+  stage: deploy_qa
+  trigger:
+    # downstream pipeline
+    include: "ci-templates/.ci-deploy-pipeline-template.yml"
+    strategy: depend
+  variables:
+    # downstream variable
+    IMAGENAME: $IMAGENAME
+    TAG: $IMAGETAG
+    NAMESPACE: qa
+    ENV_NAME: qa/$CI_COMMIT_REF_NAME
+    SERVICE_TYPE: $SERVICE_TYPE
+    NODEPORT: $SVC_NODEPORT_QA
+    CHART_DIR: $CHART_DIR    
+    VM_IP: $EXTERNAL_IP
+
+
+# ----------------------------------------------
+# STAGING
+# ----------------------------------------------
+deploy_staging:
+  stage: deploy_staging
+  trigger:
+    # downstream pipeline
+    include: "ci-templates/.ci-deploy-pipeline-template.yml"
+    strategy: depend
+  variables:
+    # downstream variable
+    IMAGENAME: $IMAGENAME
+    TAG: $IMAGETAG
+    NAMESPACE: staging
+    ENV_NAME: staging/$CI_COMMIT_REF_NAME
+    SERVICE_TYPE: $SERVICE_TYPE
+    NODEPORT: $SVC_NODEPORT_STAGING
+    CHART_DIR: $CHART_DIR    
+    VM_IP: $EXTERNAL_IP
+
+
+# ----------------------------------------------
+# PRODUCTION
+# ----------------------------------------------
+deploy_prod:
+  stage: deploy_prod
+  trigger:
+    # downstream pipeline
+    include: "ci-templates/.ci-deploy-pipeline-template.yml"
+    strategy: depend
+  when: manual
+  only:
+    - main
+  variables:
+    # downstream variable
+    IMAGENAME: $IMAGENAME
+    TAG: $IMAGETAG
+    NAMESPACE: prod
+    ENV_NAME: prod/$CI_COMMIT_REF_NAME
+    SERVICE_TYPE: $SERVICE_TYPE
+    NODEPORT: $SVC_NODEPORT_PROD
+    CHART_DIR: $CHART_DIR    
+    VM_IP: $EXTERNAL_IP
+  

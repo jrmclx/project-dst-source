@@ -1,0 +1,99 @@
+# Pipeline principal - Orchestrateur des pipelines enfants (propre à chaque image)
+
+include:
+  - local: '/ci-templates/.ci-integration-tests.yml'
+
+variables:
+  TAG: $CI_COMMIT_SHORT_SHA
+  DOMAIN: fastapi.vulgarit.fr
+
+stages:
+  - build_n_deploy
+  - integration_tests
+
+# ----------------------------------------------
+# Trigger Jobs - Build, Run, Push et Deploy_Dev
+# ----------------------------------------------
+frontend:
+  stage: build_n_deploy
+  trigger:
+    include: "frontend/.gitlab-ci.yml"
+    strategy: depend
+  variables:
+    IMAGENAME: frontend
+    IMAGETAG: $TAG
+    CHART_DIR: "Helm/frontend"
+    CONTAINERPORT: 80
+    URL_PATH: ""
+    HOSTPORT: 7080
+  rules:
+    - changes:
+        - $IMAGENAME/**   # ne se déclenche que si les fichiers du dossiers changent
+      when: manual
+
+    - when: never         # sinon, ne jamais déclencher
+
+backend:
+  stage: build_n_deploy
+  trigger:
+    include: "backend/.gitlab-ci.yml"
+    strategy: depend
+  variables:
+    IMAGENAME: backend
+    IMAGETAG: $TAG
+    CHART_DIR: "Helm/backend"
+    CONTAINERPORT: 8000
+    URL_PATH: "/docs"
+    HOSTPORT: 7800
+  rules:
+    - changes:
+        - $IMAGENAME/**   # ne se déclenche que si les fichiers du dossiers changent
+      when: manual
+    
+    - when: never         # sinon, ne jamais déclencher
+
+
+
+# ----------------------------------------------
+# Tests d’intégration sur l'environnement DEV
+# ----------------------------------------------
+
+test_dev:
+  stage: integration_tests
+  variables:
+    NODEPORT: $NODEPORT_DEV
+  extends: .integration_test
+  rules:
+    - when: manual
+
+test_qa:
+  stage: integration_tests
+  variables:
+    NODEPORT: $NODEPORT_QA
+  extends: .integration_test
+  rules:
+    - when: manual
+
+test_staging:
+  stage: integration_tests
+  variables:
+    NODEPORT: $NODEPORT_STAGING
+  extends: .integration_test
+  rules:
+    - when: manual
+
+test_prod:
+  stage: integration_tests
+  variables:
+    NODEPORT: $NODEPORT_PROD
+  extends: .integration_test
+  rules:
+    # 1. N’exécuter que sur main + si fichiers modifiés
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      changes:
+        - "users/**/*"
+        - "orders/**/*"
+        - "gateway/**/*"
+      when: manual
+    # 2. Sinon, ne rien faire
+    - when: never

@@ -1,0 +1,52 @@
+##### Upstream variables ##### 
+# Les variables suivantes doivent être définies dans l'appelant
+#
+#   IMAGENAME:      nom de l'image Docker (et du dossier contenant le code source)
+#   TAG:            tag de l'image Docker (par exemple, $CI_COMMIT_SHORT_SHA ou "latest")
+#   HOSTPORT:       port exposé sur l'hôte pour accéder au service via Docker
+#   CONTAINERPORT:  port exposé dans le conteneur Docker
+#   URL_PATH:        chemin URL pour accéder au service (ex: "api/v1/healthz")
+#
+
+
+#----------------------------------------------
+# Construire l'image Docker et la taguer
+#----------------------------------------------
+.build_template:
+  stage: build
+  script:
+    - cd $IMAGENAME/
+    - docker build -t "$CI_REGISTRY_IMAGE/$IMAGENAME:latest" .
+    - docker tag "$CI_REGISTRY_IMAGE/$IMAGENAME:latest" "$CI_REGISTRY_IMAGE/$IMAGENAME:$TAG"
+
+
+# ----------------------------------------------
+# Exécuter le container et vérifier qu'il répond
+# ----------------------------------------------
+.run_template:
+  stage: run
+  script:
+    - docker run -d -p $HOSTPORT:$CONTAINERPORT --name $IMAGENAME "$CI_REGISTRY_IMAGE/$IMAGENAME:$TAG"
+    - sleep 5
+    - curl -sf -o /dev/null -w "HTTP Code':' %{http_code}\n" http://localhost:$HOSTPORT/$URL_PATH
+  after_script:
+    - docker stop $IMAGENAME || true
+    - docker rm $IMAGENAME || true
+
+
+# ----------------------------------------------
+# Pousser l'image Docker vers le registre
+# ----------------------------------------------
+.push_template:
+  stage: push
+  before_script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login $CI_REGISTRY -u $CI_REGISTRY_USER --password-stdin
+  script:
+    - docker push "$CI_REGISTRY_IMAGE/$IMAGENAME:$TAG"
+    # Push également le tag 'latest' si le tag Git du commit est défini
+    - |
+      if [ ! -z "$CI_COMMIT_TAG" ]; then
+        echo "Release TAG detected: pushing tags '$CI_COMMIT_TAG' and 'latest'"
+        docker push "$CI_REGISTRY_IMAGE/$IMAGENAME:latest"
+        docker push "$CI_REGISTRY_IMAGE/$IMAGENAME:$CI_COMMIT_TAG"
+      fi

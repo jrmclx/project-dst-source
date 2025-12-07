@@ -1,0 +1,61 @@
+# Les variables suivantes doivent être définies par l'appelant
+#
+#   IMAGENAME:      nom de l'image Docker (et du dossier contenant le code source)
+#   TAG:            tag de l'image Docker (par exemple, $CI_COMMIT_SHORT_SHA ou "latest")
+#   NAMESPACE:      namespace Kubernetes (par exemple, dev, qa, staging, prod)
+#   CHART_DIR:      repertoire contenant les fichiers du Chart Helm
+#   DEPLOY_NAME:    nom de déploiment Helm (release name) du mciro-service
+#   HOSTNAME:       nom d'hôte utilisé pour générer le FQDN du service (ex: api, dashboard, smtp)
+#   DEPLOY_DOMAIN:  domaine utilisé pour accéder au service (ex: app.dev.mondomaine.com)
+#   URL_PATH:       chemin URL pour accéder au service (ex: "api/v1/healthz")
+#
+#   ENV_NAME:       nom de l'environnement (par exemple, dev/feature-branch, qa/main, staging/main, prod/main)
+#
+
+.deploy_template:
+  stage: deploy
+  environment:
+    name: $ENV_NAME
+    url: http://$HOSTNAME.$DEPLOY_DOMAIN/$URL_PATH
+  before_script:
+    - echo "ENV_NAME=$ENV_NAME"
+    - echo "NAMESPACE=$NAMESPACE"
+    - echo "DEPLOY_NAME=$DEPLOY_NAME"
+    - echo "CHART_DIR=$CHART_DIR"
+    - echo "TAG=$TAG"
+    - echo "URL" http://$HOSTNAME.$DEPLOY_DOMAIN/$URL_PATH
+  script:
+    - |
+      OPTIONAL_ARG=""
+    #   if [ "$SERVICE_TYPE" = "NodePort" ]; then
+    #     OPTIONAL_ARG="--set service.nodePort=$NODEPORT"
+    #   fi
+    - >
+      sudo helm upgrade --install $DEPLOY_NAME $CHART_DIR
+      --values=$CHART_DIR/values.yaml
+      --values=values-$NAMESPACE.yaml
+      --namespace $NAMESPACE --create-namespace
+      --set domain="$DEPLOY_DOMAIN"
+      --set image.repository="$CI_REGISTRY_IMAGE/$IMAGENAME"
+      --set image.tag="$TAG"
+      --set nameOverride="$HOSTNAME"
+      $OPTIONAL_ARG
+
+
+.stop_deploy_template:
+  stage: deploy
+  when: manual
+  environment:
+    name: $ENV_NAME
+    action: stop
+  script:
+    - sudo helm uninstall $DEPLOY_NAME -n $NAMESPACE
+
+
+# .test_deploy_template:
+#   stage: test
+#   script:
+#     - echo "VM_IP=$VM_IP"
+#     - echo "NODEPORT=$NODEPORT"
+#     - curl -sfv -o /dev/null -w "HTTP Code':' %{http_code}\n" http://$VM_IP:$NODEPORT/docs
+#   allow_failure: false
