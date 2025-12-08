@@ -24,9 +24,10 @@ stages:
   - build       # importé
   - run         # importé
   - push        # importé
-  - deploy_dev
-  - deploy_qa
-  - deploy_staging
+  - deploy
+  # - deploy_dev
+  # - deploy_qa
+  # - deploy_staging
   - deploy_prod
 
 
@@ -43,13 +44,14 @@ run:
 # ----------------------------------------------
 # Deploiement sur DEV
 # ----------------------------------------------
-deploy:
-  stage: deploy_dev
+deploy_dev:
+  stage: deploy
   trigger:
     # downstream pipeline
     include: "ci-templates/.ci-deploy-pipeline-template.yml"
     strategy: depend
   variables:
+    # downstream variable
     ENV_NAME: dev/$CI_COMMIT_REF_NAME
     IMAGENAME: $IMAGENAME
     TAG: $IMAGETAG
@@ -63,42 +65,37 @@ deploy:
 # Quality Assurance
 # ----------------------------------------------
 deploy_qa:
-  stage: deploy_qa
+  stage: deploy
   trigger:
     # downstream pipeline
     include: "ci-templates/.ci-deploy-pipeline-template.yml"
     strategy: depend
   variables:
     # downstream variable
+    ENV_NAME: qa/$CI_COMMIT_REF_NAME
     IMAGENAME: $IMAGENAME
     TAG: $IMAGETAG
     NAMESPACE: qa
-    ENV_NAME: qa/$CI_COMMIT_REF_NAME
-    SERVICE_TYPE: $SERVICE_TYPE
-    NODEPORT: $SVC_NODEPORT_QA
-    CHART_DIR: $CHART_DIR    
-    VM_IP: $EXTERNAL_IP
+    DEPLOY_DOMAIN: qa.$DOMAIN
 
 
 # ----------------------------------------------
 # STAGING
 # ----------------------------------------------
 deploy_staging:
-  stage: deploy_staging
+  stage: deploy
   trigger:
     # downstream pipeline
     include: "ci-templates/.ci-deploy-pipeline-template.yml"
     strategy: depend
   variables:
     # downstream variable
+    # downstream variable
+    ENV_NAME: staging/$CI_COMMIT_REF_NAME
     IMAGENAME: $IMAGENAME
     TAG: $IMAGETAG
     NAMESPACE: staging
-    ENV_NAME: staging/$CI_COMMIT_REF_NAME
-    SERVICE_TYPE: $SERVICE_TYPE
-    NODEPORT: $SVC_NODEPORT_STAGING
-    CHART_DIR: $CHART_DIR    
-    VM_IP: $EXTERNAL_IP
+    DEPLOY_DOMAIN: staging.$DOMAIN
 
 
 # ----------------------------------------------
@@ -115,12 +112,9 @@ deploy_prod:
     - main
   variables:
     # downstream variable
+    ENV_NAME: prod/$CI_COMMIT_REF_NAME
     IMAGENAME: $IMAGENAME
     TAG: $IMAGETAG
     NAMESPACE: prod
-    ENV_NAME: prod/$CI_COMMIT_REF_NAME
-    SERVICE_TYPE: $SERVICE_TYPE
-    NODEPORT: $SVC_NODEPORT_PROD
-    CHART_DIR: $CHART_DIR    
-    VM_IP: $EXTERNAL_IP
+    DEPLOY_DOMAIN: $DOMAIN
   

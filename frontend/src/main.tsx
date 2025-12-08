@@ -12,6 +12,7 @@ import { routeTree } from "./routeTree.gen"
 import { ApiError, OpenAPI } from "./client"
 import { CustomProvider } from "./components/ui/provider"
 
+// Modification du code pour récupérer l'URL de l'API depuis le fichier config.js généré au runtime
 // OpenAPI.BASE = import.meta.env.VITE_API_URL
 OpenAPI.BASE = window.APP_CONFIG?.API_URL;
 
