@@ -1,0 +1,30 @@
+# ----------------------------------------------
+# PRECHECKS des Varialbles
+# Les passages de variables sont parfois complexes entre les différents niveaux de pipeline
+# Il est donc important de vérifier que les variables nécessaires sont correctement définies
+# sinon, on arrête le pipeline immédiatement
+# ----------------------------------------------
+
+.var_checks_template:
+  stage: pre_checks
+  script:
+    - |
+      echo "Checking required variables..."
+      
+      # Convert string to array
+      IFS=' ' read -r -a REQUIRED_VARS_ARRAY <<< "$REQUIRED_VARS"
+
+      for VAR in "${REQUIRED_VARS_ARRAY[@]}"; do
+        if [ -z "${!VAR}" ]; then
+          echo "Error: Environment variable '$VAR' is NOT set."
+          MISSING=1
+        else
+          echo "$VAR = '${!VAR}'"
+        fi
+      done
+
+      # Fail job if at least one variable is missing
+      if [ "$MISSING" = 1 ]; then
+        echo "Aborting: Missing environment variables."
+        exit 1
+      fi

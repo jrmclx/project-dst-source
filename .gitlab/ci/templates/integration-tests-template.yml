@@ -1,4 +1,4 @@
-.integration_test:
+integration_test_docker:
   script:
     # Vérifier que l'opération login fonctionne correctement sur la Gateway
     - curl -sfv -o /dev/null -w "HTTP Code':' %{http_code}\n" http://$VM_IP:$NODEPORT/docs

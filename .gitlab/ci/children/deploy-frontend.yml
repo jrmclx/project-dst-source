@@ -4,7 +4,7 @@
 # Variables définies par l'appelant
 #
 #   IMAGENAME:      nom de l'image Docker (et du dossier contenant le code source)
-#   IMAGETAG:       tag de l'image Docker (par exemple, $CI_COMMIT_SHORT_SHA ou "latest")
+#   TAG:            tag de l'image Docker (par exemple, $CI_COMMIT_SHORT_SHA ou "latest")
 #   HOSTPORT:       port exposé sur l'hôte pour accéder au service via Docker
 #   CONTAINERPORT:  port exposé dans le conteneur Docker
 #   URL_PATH:       chemin URL pour vérifier que le service est bien démarré (ex: "api/v1/health")
@@ -16,29 +16,16 @@
 
 
 include:
-  - local: '/ci-templates/.ci-var-precheck.yml'
-  - local: '/ci-templates/.ci-docker-pipeline-template.yml'
+  - local: '.gitlab/ci/var-precheck-template.yml'
+  - local: '.gitlab/ci/helm-deploy-template.yml'
 
 stages:
   - pre_checks  # importé
-  - build       # importé
-  - run         # importé
-  - push        # importé
   - deploy
   # - deploy_dev
   # - deploy_qa
   # - deploy_staging
   - deploy_prod
-
-
-# ----------------------------------------------
-# Variables pour le job 'run' du template inclus
-# ----------------------------------------------
-run:
-  variables:
-    # HOSTPORT: $HOSTPORT
-    # CONTAINERPORT: "80"
-    # URL_PATH: ""
 
 
 # ----------------------------------------------

@@ -1,4 +1,7 @@
-# Les variables suivantes doivent être définies par l'appelant
+# Modèle de pipeline de déploiement utilisant des jobs réutilisables
+# Organise le déploiement dans les environnements : dev, qa, staging, prod
+
+# Les variables suivantes doivent être définies par le pipeline appelant (ou son parent)
 #
 #   IMAGENAME:      nom de l'image Docker (et du dossier contenant le code source)
 #   TAG:            tag de l'image Docker (par exemple, $CI_COMMIT_SHORT_SHA ou "latest")
@@ -7,16 +10,28 @@
 #   DEPLOY_NAME:    nom de déploiment Helm (release name) du mciro-service
 #   HOSTNAME:       nom d'hôte utilisé pour générer le FQDN du service (ex: api, dashboard, smtp)
 #   DEPLOY_DOMAIN:  domaine utilisé pour accéder au service (ex: app.dev.mondomaine.com)
-#   URL_PATH:       chemin URL pour accéder au service (ex: "api/v1/healthz")
+#   URL_PATH:       chemin URL pour accéder au service (ex: "api/v1/health")
 #
-#   ENV_NAME:       nom de l'environnement (par exemple, dev/feature-branch, qa/main, staging/main, prod/main)
-#
+#   ENV_NAME:       Nom de l'environnement (par exemple, dev/feature-branch, qa/main, staging/main, prod/main)
+#                   Doit être unique pour chaque job de déploiement (surcharger le job dans l'appelant))
 
-.deploy_template:
+
+stages:
+  - pre_checks
+  - deploy
+
+
+# ----------------------------------------------
+# Déploiement de la release Helm
+# ----------------------------------------------
+helm_deploy:
   stage: deploy
   environment:
+    on_stop: stop_deploy
     name: $ENV_NAME
     url: http://$HOSTNAME.$DEPLOY_DOMAIN/$URL_PATH
+  variables:
+    ENV_NAME: $ENV_NAME
   before_script:
     - echo "ENV_NAME=$ENV_NAME"
     - echo "NAMESPACE=$NAMESPACE"
@@ -42,7 +57,10 @@
       $OPTIONAL_ARG
 
 
-.stop_deploy_template:
+# ----------------------------------------------
+# Stop (désinstaller la release Helm)
+# ----------------------------------------------
+stop_helm_deploy:
   stage: deploy
   when: manual
   environment:
@@ -50,12 +68,3 @@
     action: stop
   script:
     - sudo helm uninstall $DEPLOY_NAME -n $NAMESPACE
-
-
-# .test_deploy_template:
-#   stage: test
-#   script:
-#     - echo "VM_IP=$VM_IP"
-#     - echo "NODEPORT=$NODEPORT"
-#     - curl -sfv -o /dev/null -w "HTTP Code':' %{http_code}\n" http://$VM_IP:$NODEPORT/docs
-#   allow_failure: false
