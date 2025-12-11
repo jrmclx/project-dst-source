@@ -1,4 +1,4 @@
-# Child pipeline du service "Frontend"
+# Child pipeline du service "Backend"
 
 # Variables définies par l'appelant
 #
@@ -11,11 +11,11 @@
 
 
 # variables:
-#   IMAGENAME: frontend
+#   IMAGENAME: backend
 #   TAG: $CI_COMMIT_SHORT_SHA
-#   HOSTPORT: 6080
-#   CONTAINERPORT: 80
-#   URL_PATH: ""
+#   HOSTPORT: 7800
+#   CONTAINERPORT: 8000
+#   URL_PATH: "/docs"
 
 
 include:

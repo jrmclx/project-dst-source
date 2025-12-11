@@ -1,23 +1,24 @@
-# Child pipeline du service "users"
-# Utilise les modèles de pipeline pour les tâches Docker et le déploiement
+# Child pipeline du Chaert "Frontend"
 
 # Variables définies par l'appelant
 #
 #   IMAGENAME:      nom de l'image Docker (et du dossier contenant le code source)
 #   TAG:            tag de l'image Docker (par exemple, $CI_COMMIT_SHORT_SHA ou "latest")
-#   HOSTPORT:       port exposé sur l'hôte pour accéder au service via Docker
-#   CONTAINERPORT:  port exposé dans le conteneur Docker
-#   URL_PATH:       chemin URL pour vérifier que le service est bien démarré (ex: "api/v1/health")
+#   NAMESPACE:      namespace Kubernetes (par exemple, dev, qa, staging, prod)
 #   CHART_DIR:      repertoire contenant les fichiers du Chart Helm
 #   DEPLOY_NAME:    nom de déploiment Helm (release name) du mciro-service
 #   HOSTNAME:       nom d'hôte utilisé pour générer le FQDN du service (ex: api, dashboard, smtp)
-#   DOMAIN:         domaine où déployer le service (ex: dev.mondomaine.com)
+#   DOMAIN:         domaine utilisé pour accéder au service (ex: app.dev.mondomaine.com)
+#   URL_PATH:       chemin URL pour accéder au service (ex: "api/v1/health")
 #
+#   ENV_NAME:       Nom de l'environnement (par exemple, dev/feature-branch, qa/main, staging/main, prod/main)
+#                   Doit être unique pour chaque job de déploiement (surcharger le job dans l'appelant))
 
 
 include:
   - local: '.gitlab/ci/var-precheck-template.yml'
-  - local: '.gitlab/ci/helm-deploy-template.yml'
+  # - local: '.gitlab/ci/helm-deploy-template.yml'
+
 
 stages:
   - pre_checks  # importé
@@ -29,23 +30,33 @@ stages:
 
 
 # ----------------------------------------------
+# Stage 'pre_checks' importé du template
+# ----------------------------------------------
+upstream_var_checks:
+  extends: .var_checks_template
+  variables:
+    REQUIRED_VARS: "IMAGENAME TAG NAMESPACE CHART_DIR DEPLOY_NAME HOSTNAME DOMAIN URL_PATH ENV_NAME"
+
+
+# ----------------------------------------------
 # Deploiement sur DEV
 # ----------------------------------------------
 deploy_dev:
   stage: deploy
   trigger:
-    # downstream pipeline
-    include: "ci-templates/.ci-deploy-pipeline-template.yml"
+    include: ".gitlab/ci/helm-deploy-template.yml"
     strategy: depend
   variables:
-    # downstream variable
     ENV_NAME: dev/$CI_COMMIT_REF_NAME
     IMAGENAME: $IMAGENAME
-    TAG: $IMAGETAG
+    TAG: $TAG
     NAMESPACE: dev
+    CHART_DIR: $CHART_DIR
+    DEPLOY_NAME: $DEPLOY_NAME
+    HOSTNAME: $HOSTNAME
     DEPLOY_DOMAIN: dev.$DOMAIN
-    # CHART_DIR: $CHART_DIR
-    # URL_PATH: ""  
+    URL_PATH: ""
+    OPTIONAL_ARG: ""
 
 
 # ----------------------------------------------
@@ -54,16 +65,19 @@ deploy_dev:
 deploy_qa:
   stage: deploy
   trigger:
-    # downstream pipeline
-    include: "ci-templates/.ci-deploy-pipeline-template.yml"
+    include: ".gitlab/ci/helm-deploy-template.yml"
     strategy: depend
   variables:
-    # downstream variable
     ENV_NAME: qa/$CI_COMMIT_REF_NAME
     IMAGENAME: $IMAGENAME
-    TAG: $IMAGETAG
+    TAG: $TAG
     NAMESPACE: qa
+    CHART_DIR: $CHART_DIR
+    DEPLOY_NAME: $DEPLOY_NAME
+    HOSTNAME: $HOSTNAME
     DEPLOY_DOMAIN: qa.$DOMAIN
+    URL_PATH: ""
+    OPTIONAL_ARG: ""
 
 
 # ----------------------------------------------
@@ -72,17 +86,19 @@ deploy_qa:
 deploy_staging:
   stage: deploy
   trigger:
-    # downstream pipeline
-    include: "ci-templates/.ci-deploy-pipeline-template.yml"
+    include: ".gitlab/ci/helm-deploy-template.yml"
     strategy: depend
   variables:
-    # downstream variable
-    # downstream variable
     ENV_NAME: staging/$CI_COMMIT_REF_NAME
     IMAGENAME: $IMAGENAME
-    TAG: $IMAGETAG
+    TAG: $TAG
     NAMESPACE: staging
+    CHART_DIR: $CHART_DIR
+    DEPLOY_NAME: $DEPLOY_NAME
+    HOSTNAME: $HOSTNAME
     DEPLOY_DOMAIN: staging.$DOMAIN
+    URL_PATH: ""
+    OPTIONAL_ARG: ""
 
 
 # ----------------------------------------------
@@ -91,17 +107,19 @@ deploy_staging:
 deploy_prod:
   stage: deploy_prod
   trigger:
-    # downstream pipeline
-    include: "ci-templates/.ci-deploy-pipeline-template.yml"
+    include: ".gitlab/ci/helm-deploy-template.yml"
     strategy: depend
   when: manual
   only:
     - main
   variables:
-    # downstream variable
     ENV_NAME: prod/$CI_COMMIT_REF_NAME
     IMAGENAME: $IMAGENAME
-    TAG: $IMAGETAG
+    TAG: $TAG
     NAMESPACE: prod
-    DEPLOY_DOMAIN: $DOMAIN
-  
+    CHART_DIR: $CHART_DIR
+    DEPLOY_NAME: $DEPLOY_NAME
+    HOSTNAME: $HOSTNAME
+    DEPLOY_DOMAIN: prod.$DOMAIN
+    URL_PATH: ""
+    OPTIONAL_ARG: ""

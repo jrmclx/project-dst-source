@@ -17,7 +17,6 @@
 
 
 stages:
-  - pre_checks
   - deploy
 
 

@@ -23,10 +23,9 @@ frontend:
   variables:
     IMAGENAME: frontend
     TAG: $TAG
-    # CHART_DIR: "Helm/frontend"
+    HOSTPORT: 6080
     CONTAINERPORT: 80
     URL_PATH: ""
-    HOSTPORT: 6080
   rules:
     - changes:
         - $IMAGENAME/**   # ne se déclenche que si les fichiers du dossiers changent
@@ -41,15 +40,14 @@ frontend:
 backend:
   stage: triggers
   trigger:
-    include: ".gitlab/ci/build-frontend.yml"    # .gitlab/ci/templates/build-template.yml
+    include: ".gitlab/ci/build-backend.yml"    # .gitlab/ci/templates/build-template.yml
     strategy: depend
   variables:
     IMAGENAME: backend
     TAG: $TAG
-    # CHART_DIR: "Helm/backend"
+    HOSTPORT: 7800
     CONTAINERPORT: 8000
     URL_PATH: "/docs"
-    HOSTPORT: 7800
   rules:
     - changes:
         - $IMAGENAME/**   # ne se déclenche que si les fichiers du dossiers changent
@@ -69,6 +67,3 @@ backend:
 #   extends: .integration_test
 #   rules:
 #     - when: manual
-
-
-
