@@ -18,7 +18,7 @@ stages:
 frontend:
   stage: triggers
   trigger:
-    include: ".gitlab/ci/build-frontend.yml"
+    include: ".gitlab/ci/children/build-frontend.yml"
     strategy: depend
   variables:
     IMAGENAME: frontend
@@ -41,7 +41,7 @@ frontend:
 backend:
   stage: triggers
   trigger:
-    include: ".gitlab/ci/build-backend.yml"    # .gitlab/ci/templates/build-template.yml
+    include: ".gitlab/ci/children/build-backend.yml"    # .gitlab/ci/templates/build-template.yml
     strategy: depend
   variables:
     IMAGENAME: backend
