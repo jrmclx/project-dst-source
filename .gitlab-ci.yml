@@ -5,7 +5,7 @@
 
 variables:
   TAG: $CI_COMMIT_SHORT_SHA
-  DOMAIN: fastapi.vulgarit.fr
+  # DOMAIN: fastapi.vulgarit.fr
 
 
 stages:
@@ -29,9 +29,10 @@ frontend:
   rules:
     - changes:
         - $IMAGENAME/**   # ne se déclenche que si les fichiers du dossiers changent
-      when: manual
-
-    - when: never         # sinon, ne jamais déclencher
+    
+    - when: manual
+    
+    # - when: never         # sinon, ne jamais déclencher
 
 
 # ----------------------------------------------
@@ -51,9 +52,10 @@ backend:
   rules:
     - changes:
         - $IMAGENAME/**   # ne se déclenche que si les fichiers du dossiers changent
-      when: manual
     
-    - when: never         # sinon, ne jamais déclencher
+    - when: manual
+    
+    # - when: never         # sinon, ne jamais déclencher
 
 
 # ----------------------------------------------
