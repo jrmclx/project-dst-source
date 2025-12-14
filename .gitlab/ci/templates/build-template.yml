@@ -8,11 +8,14 @@
 #   TAG:            tag de l'image Docker (par exemple, $CI_COMMIT_SHORT_SHA ou "latest")
 #   HOSTPORT:       port exposé sur l'hôte pour accéder au service via Docker
 #   CONTAINERPORT:  port exposé dans le container Docker
-#   URL_PATH:       URL path pour vérifier que le service est bien démarré (ex: "api/v1/healthz")
+#   URL_PATH:       URL path pour vérifier que le service est bien démarré (ex: "api/v1/health")
 #
 
+include:
+  - local: '.gitlab/ci/templates/var-precheck-template.yml'
 
 stages:
+  - pre_checks  # importé
   - build
   - run
   - push
@@ -25,7 +28,7 @@ build_image:
   stage: build
   script:
     - |
-      TAG="${TAG:-manual-test}" 
+      TAG="${TAG:-tag-not-found}"   # fallback 
       echo "Building with tag: $TAG"
       
       cd $IMAGENAME/
@@ -43,20 +46,32 @@ build_image:
 # ----------------------------------------------
 run_image:
   stage: run
+  
+  before_script:
+    # si jamais un run manuel a été oublié, alors nettoyer...
+    - docker stop $IMAGENAME || true
+    - docker rm $IMAGENAME || true
+  
   script:
     - |
-      TAG="${TAG:-manual-test}"
+      TAG="${TAG:-tag-not-found}"   # fallback
       echo "Running with tag: $TAG"
+      
       echo "Image: $IMAGENAME"
       echo "Hostport: $HOSTPORT"
       echo "Containerport: $CONTAINERPORT"
+      
+      echo "Starting container..."
       echo "docker run --env-file .env -d -p $HOSTPORT:$CONTAINERPORT --name $IMAGENAME $CI_REGISTRY_IMAGE/$IMAGENAME:$TAG"
       docker run --env-file .env -d -p $HOSTPORT:$CONTAINERPORT --name $IMAGENAME "$CI_REGISTRY_IMAGE/$IMAGENAME:$TAG"
-      echo "sleep 30s then..."
-      echo "curl -sf -o /dev/null -w \"HTTP Code':' %{http_code}\\n\" http://localhost:$HOSTPORT$URL_PATH"
+      
+      echo "sleep 30s to wait for service to start, then check response with cURL"
       sleep 30
+      echo "curl -sf -o /dev/null -w \"HTTP Code':' %{http_code}\\n\" http://localhost:$HOSTPORT$URL_PATH"
       curl -sf -o /dev/null -w "HTTP Code':' %{http_code}\n" http://localhost:$HOSTPORT$URL_PATH
+  
   after_script:
+    # nettoyer après le run
     - docker stop $IMAGENAME || true
     - docker rm $IMAGENAME || true
 
@@ -66,11 +81,14 @@ run_image:
 # ----------------------------------------------
 push_image:
   stage: push
+
   before_script:
+    # s'identifier auprès du registre privé GitLab avant le Push
     - echo "$CI_REGISTRY_PASSWORD" | docker login $CI_REGISTRY -u $CI_REGISTRY_USER --password-stdin
+
   script:
     - |
-      TAG="${TAG:-manual-test}"  # fallback manuel
+      TAG="${TAG:-tag-not-found}"  # fallback
       echo "Pushing tag: $TAG"
       docker push "$CI_REGISTRY_IMAGE/$IMAGENAME:$TAG"
     # Push également le tag 'latest' si le tag Git du commit est défini

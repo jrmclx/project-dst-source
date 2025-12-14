@@ -1,7 +1,7 @@
 # ----------------------------------------------
 # PRECHECKS des Varialbles
 # Les passages de variables sont parfois complexes entre les différents niveaux de pipeline
-# Il est donc important de vérifier que les variables nécessaires sont correctement définies
+# Il est donc opportun de vérifier que les variables nécessaires sont correctement définies
 # sinon, on arrête le pipeline immédiatement
 # ----------------------------------------------
 
@@ -9,12 +9,18 @@
   stage: pre_checks
   script:
     - |
-      echo "Checking required variables..."
+      # Guard: skip debug if DEBUG_VARS is empty or disabled
+      if [ -z "$DEBUG_VARS" ] || [ "$DEBUG_VARS" = "disabled" ]; then
+        echo "DEBUG_VARS is empty or disabled, skipping variable checks."
+        exit 0
+      fi
+      
+      echo "Checking value of required variables..."
       
       # Convert string to array
-      IFS=' ' read -r -a REQUIRED_VARS_ARRAY <<< "$REQUIRED_VARS"
+      IFS=' ' read -r -a VARS_ARRAY <<< "$DEBUG_VARS"
 
-      for VAR in "${REQUIRED_VARS_ARRAY[@]}"; do
+      for VAR in "${VARS_ARRAY[@]}"; do
         if [ -z "${!VAR}" ]; then
           echo "Error: Environment variable '$VAR' is NOT set."
           MISSING=1

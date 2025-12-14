@@ -18,11 +18,13 @@ stages:
 frontend:
   stage: triggers
   trigger:
-    include: ".gitlab/ci/children/build-frontend.yml"
+    include: ".gitlab/ci/templates/build-template.yml"
     strategy: depend
   variables:
+    # DEBUG_VARS --> vérifie la valeur des variables et échoue si absente. Laisser vide ou bien "disabled" pour annuler le check.
+    DEBUG_VARS: "IMAGENAME IMAGETAG HOSTPORT CONTAINERPORT URL_PATH"
     IMAGENAME: frontend
-    IMAGETAG: $TAG
+    IMAGETAG: $TAG    # TAG: $TAG n'est pas correctement évalué, il faut changer le nom de la variable downstream.
     HOSTPORT: 6080
     CONTAINERPORT: 80
     URL_PATH: "/"
@@ -41,9 +43,11 @@ frontend:
 backend:
   stage: triggers
   trigger:
-    include: ".gitlab/ci/children/build-backend.yml"    # .gitlab/ci/templates/build-template.yml
+    include: ".gitlab/ci/templates/build-template.yml"    # .gitlab/ci/templates/build-template.yml
     strategy: depend
   variables:
+    # DEBUG_VARS --> vérifie la valeur des variables et échoue si absente. Laisser vide ou bien "disabled" pour annuler le check.
+    DEBUG_VARS: "IMAGENAME IMAGETAG HOSTPORT CONTAINERPORT URL_PATH"
     IMAGENAME: backend
     IMAGETAG: $TAG
     HOSTPORT: 7800
