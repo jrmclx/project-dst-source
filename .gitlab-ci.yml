@@ -22,7 +22,7 @@ frontend:
     strategy: depend
   variables:
     IMAGENAME: frontend
-    TAG: $TAG
+    IMAGETAG: $TAG
     HOSTPORT: 6080
     CONTAINERPORT: 80
     URL_PATH: ""
@@ -45,7 +45,7 @@ backend:
     strategy: depend
   variables:
     IMAGENAME: backend
-    TAG: $TAG
+    IMAGETAG: $TAG
     HOSTPORT: 7800
     CONTAINERPORT: 8000
     URL_PATH: "/docs"
