@@ -50,12 +50,9 @@ run_image:
       echo "Image: $IMAGENAME"
       echo "Hostport: $HOSTPORT"
       echo "Containerport: $CONTAINERPORT"
-      ls -l .env
       echo "docker run --env-file .env -d -p $HOSTPORT:$CONTAINERPORT --name $IMAGENAME $CI_REGISTRY_IMAGE/$IMAGENAME:$TAG"
-      docker run --env-file .env -d -p $HOSTPORT:$CONTAINERPORT --name $IMAGENAME "$CI_REGISTRY_IMAGE/$IMAGENAME:$TAG"
-      sleep 5
-      curl -v http://localhost:$HOSTPORT$URL_PATH || True
-      sleep 5
+      docker run --eclearnv-file .env -d -p $HOSTPORT:$CONTAINERPORT --name $IMAGENAME "$CI_REGISTRY_IMAGE/$IMAGENAME:$TAG"
+      sleep 30
       echo 'curl -sf -o /dev/null -w "HTTP Code':'"'" %{http_code}\n" http://localhost:'"$HOSTPORT$URL_PATH"
       curl -sf -o /dev/null -w "HTTP Code':' %{http_code}\n" http://localhost:$HOSTPORT$URL_PATH
   after_script:
