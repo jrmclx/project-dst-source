@@ -55,7 +55,7 @@ run_image:
       docker run --env-file .env -d -p $HOSTPORT:$CONTAINERPORT --name $IMAGENAME "$CI_REGISTRY_IMAGE/$IMAGENAME:$TAG"
       sleep 5
       echo "curl on http://localhost:$HOSTPORT/$URL_PATH"
-      curl -sf -o /dev/null -w "HTTP Code':' %{http_code}\n" http://localhost:$HOSTPORT/$URL_PATH
+      curl -sf -o /dev/null -w "HTTP Code':' %{http_code}\n" http://localhost:$HOSTPORT$URL_PATH
   after_script:
     - docker stop $IMAGENAME || true
     - docker rm $IMAGENAME || true

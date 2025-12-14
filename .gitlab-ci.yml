@@ -25,7 +25,7 @@ frontend:
     IMAGETAG: $TAG
     HOSTPORT: 6080
     CONTAINERPORT: 80
-    URL_PATH: ""
+    URL_PATH: "/"
   rules:
     - changes:
         - $IMAGENAME/**   # ne se déclenche que si les fichiers du dossiers changent
@@ -48,7 +48,7 @@ backend:
     IMAGETAG: $TAG
     HOSTPORT: 7800
     CONTAINERPORT: 8000
-    URL_PATH: "api/v1/utils/health-check/"
+    URL_PATH: "/api/v1/utils/health-check/"
   rules:
     - changes:
         - $IMAGENAME/**   # ne se déclenche que si les fichiers du dossiers changent
