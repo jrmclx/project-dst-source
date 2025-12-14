@@ -48,7 +48,7 @@ backend:
     IMAGETAG: $TAG
     HOSTPORT: 7800
     CONTAINERPORT: 8000
-    URL_PATH: "docs"
+    URL_PATH: "api/v1/utils/health-check/"
   rules:
     - changes:
         - $IMAGENAME/**   # ne se déclenche que si les fichiers du dossiers changent
