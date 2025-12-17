@@ -10,14 +10,6 @@
 #
 
 
-# variables:
-#   IMAGENAME: frontend
-#   TAG: $CI_COMMIT_SHORT_SHA
-#   HOSTPORT: 6080
-#   CONTAINERPORT: 80
-#   URL_PATH: ""
-
-
 include:
   - local: '.gitlab/ci/templates/var-precheck-template.yml'
   - local: '.gitlab/ci/templates/build-template.yml'

@@ -3,19 +3,11 @@
 # Variables définies par l'appelant
 #
 #   IMAGENAME:      nom de l'image Docker (et du dossier contenant le code source)
-#   IMAGETAG:       tag de l'image Docker (par exemple, $CI_COMMIT_SHORT_SHA ou "latest")
+#   TAG:            tag de l'image Docker (par exemple, $CI_COMMIT_SHORT_SHA ou "latest")
 #   HOSTPORT:       port exposé sur l'hôte pour accéder au service via Docker
 #   CONTAINERPORT:  port exposé dans le conteneur Docker
 #   URL_PATH:       chemin URL pour vérifier que le service est bien démarré (ex: "api/v1/health")
 #
-
-
-# variables:
-#   IMAGENAME: backend
-#   TAG: $CI_COMMIT_SHORT_SHA
-#   HOSTPORT: 7800
-#   CONTAINERPORT: 8000
-#   URL_PATH: "/docs"
 
 
 include:
@@ -58,4 +50,3 @@ upstream_var_checks:
 # ----------------------------------------------
 # push_image:
 #   variables:
-
