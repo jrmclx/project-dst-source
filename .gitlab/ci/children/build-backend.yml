@@ -36,28 +36,26 @@ stages:
 upstream_var_checks:
   extends: .var_checks_template
   variables:
-    REQUIRED_VARS: "IMAGENAME IMAGETAG HOSTPORT CONTAINERPORT URL_PATH"
+    REQUIRED_VARS: "IMAGENAME TAG HOSTPORT CONTAINERPORT URL_PATH"
 
 
 # ----------------------------------------------
 # Build - importé du template
 # ----------------------------------------------
-build_image:
-  variables:
-    TAG: $IMAGETAG
+# build_image:
+#   variables:
 
 
 # ----------------------------------------------
 # Run - importé du template
 # ----------------------------------------------
-build_image:
-  variables:
-    TAG: $IMAGETAG
+# run_image:
+#   variables:
 
 
 # ----------------------------------------------
 # Push - importé du template
 # ----------------------------------------------
-build_image:
-  variables:
-    TAG: $IMAGETAG
+# push_image:
+#   variables:
+

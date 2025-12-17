@@ -22,9 +22,9 @@ frontend:
     strategy: depend
   variables:
     # DEBUG_VARS --> vérifie la valeur des variables et échoue si absente. Laisser vide ou bien "disabled" pour annuler le check.
-    DEBUG_VARS: "IMAGENAME IMAGETAG HOSTPORT CONTAINERPORT URL_PATH"
+    DEBUG_VARS: "IMAGENAME TAG HOSTPORT CONTAINERPORT URL_PATH"
     IMAGENAME: frontend
-    IMAGETAG: $TAG    # TAG: $TAG n'est pas correctement évalué, il faut changer le nom de la variable downstream.
+    # IMAGETAG: $TAG    # TAG: $TAG n'est pas correctement évalué, il faut changer le nom de la variable downstream.
     HOSTPORT: 6080
     CONTAINERPORT: 80
     URL_PATH: "/"
@@ -47,9 +47,9 @@ backend:
     strategy: depend
   variables:
     # DEBUG_VARS --> vérifie la valeur des variables et échoue si absente. Laisser vide ou bien "disabled" pour annuler le check.
-    DEBUG_VARS: "IMAGENAME IMAGETAG HOSTPORT CONTAINERPORT URL_PATH"
+    DEBUG_VARS: "IMAGENAME TAG HOSTPORT CONTAINERPORT URL_PATH"
     IMAGENAME: backend
-    IMAGETAG: $TAG
+    # IMAGETAG: $TAG
     HOSTPORT: 7800
     CONTAINERPORT: 8000
     URL_PATH: "/api/v1/utils/health-check/"

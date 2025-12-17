@@ -11,14 +11,25 @@
 #   URL_PATH:       URL path pour vérifier que le service est bien démarré (ex: "api/v1/health")
 #
 
+
 include:
   - local: '.gitlab/ci/templates/var-precheck-template.yml'
+
 
 stages:
   - pre_checks  # importé
   - build
   - run
   - push
+
+
+# ----------------------------------------------
+# Stage 'pre_checks' importé du template
+# ----------------------------------------------
+upstream_var_checks:
+  extends: .var_checks_template
+  variables:
+    REQUIRED_VARS: "IMAGENAME TAG HOSTPORT CONTAINERPORT URL_PATH"
 
 
 #----------------------------------------------
