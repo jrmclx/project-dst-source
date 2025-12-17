@@ -32,7 +32,7 @@ frontend:
     - changes:
         - $IMAGENAME/**   # ne se déclenche que si les fichiers du dossiers changent
     
-    - when: manual
+    - when: manual    # déclencer manuellement pour tester
     
     # - when: never         # sinon, ne jamais déclencher
 
@@ -57,19 +57,7 @@ backend:
     - changes:
         - $IMAGENAME/**   # ne se déclenche que si les fichiers du dossiers changent
     
-    - when: manual
+    - when: manual    # déclencer manuellement pour tester
     
     # - when: never         # sinon, ne jamais déclencher
 
-
-# ----------------------------------------------
-# Tests d’intégration sur Docker Compose
-# ----------------------------------------------
-
-# test_dev:
-#   stage: integration_tests
-#   variables:
-#     NODEPORT: $NODEPORT_DEV
-#   extends: .integration_test
-#   rules:
-#     - when: manual

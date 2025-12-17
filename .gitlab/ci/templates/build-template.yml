@@ -28,18 +28,18 @@ build_image:
   stage: build
   script:
     - |
-      TAG="${TAG:-tag-not-found}"   # fallback 
+      TAG="${TAG:-tag-not-found}" 
       echo "Building with tag: $TAG"
       
       cd $IMAGENAME/
       docker build -t "$CI_REGISTRY_IMAGE/$IMAGENAME:$TAG" .
-
+      
       if [ -n "$CI_COMMIT_TAG" ]; then
         docker tag "$CI_REGISTRY_IMAGE/$IMAGENAME:$TAG" "$CI_REGISTRY_IMAGE/$IMAGENAME:latest"
         docker tag "$CI_REGISTRY_IMAGE/$IMAGENAME:$TAG" "$CI_REGISTRY_IMAGE/$IMAGENAME:$CI_COMMIT_TAG"
       fi
 
-# TAG="${TAG:-manual-test}"   # fallback - si TAG est vide alors le déclenchement ne vient pas d'un commit et est manuel, donc affecter une valeur à TAG
+# TAG="${TAG:-tag-not-found}"   # fallback - si TAG est vide alors affecter une valeur de fallback à TAG
 
 # ----------------------------------------------
 # Exécuter le container et vérifier qu'il répond
@@ -54,7 +54,7 @@ run_image:
   
   script:
     - |
-      TAG="${TAG:-tag-not-found}"   # fallback
+      TAG="${TAG:-tag-not-found}"
       echo "Running with tag: $TAG"
       
       echo "Image: $IMAGENAME"
@@ -88,7 +88,7 @@ push_image:
 
   script:
     - |
-      TAG="${TAG:-tag-not-found}"  # fallback
+      TAG="${TAG:-tag-not-found}"
       echo "Pushing tag: $TAG"
       docker push "$CI_REGISTRY_IMAGE/$IMAGENAME:$TAG"
     # Push également le tag 'latest' si le tag Git du commit est défini
