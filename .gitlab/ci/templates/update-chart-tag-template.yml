@@ -54,23 +54,27 @@
       mkdir -p "$INSTALL_DIR"
       export PATH="$INSTALL_DIR:$PATH"
 
+      INSTALL_YQ=false
+
       if command -v yq >/dev/null 2>&1; then
         CURRENT_VERSION="$(yq --version | sed -E 's/[^0-9]*([0-9]+).*/\1/')"
         echo "Found yq version $CURRENT_VERSION"
 
         if [ "$CURRENT_VERSION" -ge "$REQUIRED_MAJOR" ]; then
           echo "yq version is sufficient, skipping installation"
-          exit 0
         else
           echo "yq version is too old, installing latest v4+"
+          INSTALL_YQ=true
         fi
       else
-        echo "yq not found, installing"
+        echo "yq not found, installing latest v4+"
+        INSTALL_YQ=true
       fi
 
-      curl -sSL https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 \
-        -o "$YQ_BIN"
-
-      chmod +x "$YQ_BIN"
+      if [ "$INSTALL_YQ" = true ]; then
+        curl -sSL https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 \
+          -o "$YQ_BIN"
+        chmod +x "$YQ_BIN"
+      fi
 
       yq --version
