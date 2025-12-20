@@ -43,7 +43,9 @@ frontend:
 # Publier le tag dans values-dev.yaml du Chart
 update_chart_frontend:
   stage: promote
-  extends: .update_helm_values
+  extends:
+    - .install_yq_v4
+    - .update_helm_values
   variables:
     CHART: $CHARTS_DIR/frontend
   needs:
@@ -79,7 +81,9 @@ backend:
 # Publier le tag dans values-dev.yaml du Chart
 update_chart_backend:
   stage: promote
-  extends: .update_helm_values
+  extends:
+    - .install_yq_v4
+    - .update_helm_values
   variables:
     CHART: $CHARTS_DIR/backend
   needs:

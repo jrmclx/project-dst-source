@@ -15,7 +15,6 @@
 # Publier le tag dans les valeurs Deploy Dev
 # ----------------------------------------------
 .update_helm_values:
-  stage: promote
   script:
     - WORKING_BRANCH="$CI_COMMIT_REF_NAME"
     - HELM_REPO_URL="https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_NAMESPACE}/${DEPLOY_REPO}"
@@ -34,8 +33,44 @@
 
     - cd "$CHART"
     - pwd
-    - ls -l
     - ls -l values-dev.yaml
     - yq e -i -y '.image.tag = env(TAG)' values-dev.yaml
     - git commit -am "Deploy ${IMAGENAME} ${TAG} [skip ci]"
     - git push origin "$WORKING_BRANCH"
+
+
+# ----------------------------------------------
+# Installer YQ latest si besoin
+# ----------------------------------------------
+.install_yq_v4:
+  before_script:
+    - |
+      set -e
+
+      REQUIRED_MAJOR=4
+      INSTALL_DIR="$HOME/bin"
+      YQ_BIN="$INSTALL_DIR/yq"
+
+      mkdir -p "$INSTALL_DIR"
+      export PATH="$INSTALL_DIR:$PATH"
+
+      if command -v yq >/dev/null 2>&1; then
+        CURRENT_VERSION="$(yq --version | sed -E 's/[^0-9]*([0-9]+).*/\1/')"
+        echo "Found yq version $CURRENT_VERSION"
+
+        if [ "$CURRENT_VERSION" -ge "$REQUIRED_MAJOR" ]; then
+          echo "yq version is sufficient, skipping installation"
+          exit 0
+        else
+          echo "yq version is too old, installing latest v4+"
+        fi
+      else
+        echo "yq not found, installing"
+      fi
+
+      curl -sSL https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 \
+        -o "$YQ_BIN"
+
+      chmod +x "$YQ_BIN"
+
+      yq --version
