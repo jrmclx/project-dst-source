@@ -1,15 +1,18 @@
 # Pipeline principal - Orchestrateur des pipelines enfants (propre à chaque image)
 
-# include:
-#   - local: '/ci-templates/.ci-integration-tests.yml'
+include:
+  # - local: '/ci-templates/.ci-integration-tests.yml'
+  - local: '.gitlab/ci/templates/update-chart-tag-template.yml'
 
 variables:
   TAG: $CI_COMMIT_SHORT_SHA
-  # DOMAIN: fastapi.vulgarit.fr
+  DEPLOY_REPO: projet_fastapi_deploy.git
+  CHARTS_DIR: Helm
 
 
 stages:
   - triggers
+  - promote
 
 
 # ----------------------------------------------
@@ -35,6 +38,21 @@ frontend:
     - when: manual    # déclencer manuellement pour tester
     
     # - when: never         # sinon, ne jamais déclencher
+
+
+# ----------------------------------------------
+# Publier le tag dans values-dev.yaml du Chart
+# ----------------------------------------------
+deploy_frontend:
+  stage: promote
+  extends: .update_helm_values
+  trigger:
+    include: ".gitlab/ci/templates/update-chart-tag-template.yml"
+    strategy: depend
+  variables:
+    CHART: $CHARTS_DIR/frontend
+  script:
+
 
 
 # ----------------------------------------------

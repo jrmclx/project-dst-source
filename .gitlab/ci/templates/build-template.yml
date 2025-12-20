@@ -1,4 +1,4 @@
-# Modèle de pipeline Docker utilisant des jobs réutilisables
+# Modèle de pipeline Docker
 # Organise les 3 étapes : build, run et push
 
 ##### Upstream variables ##### 

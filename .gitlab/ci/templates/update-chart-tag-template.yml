@@ -1,0 +1,25 @@
+
+# Modèle de pipeline permettant d'envoyer le TAG de l'image construite vers le dépôt de Déploiement dans le même projet
+# Clone le dépot de déploiement, écrit le Tag de le fichiers values-dev.yaml, commit et push pour publier le tag et déclehn cer le pipeline Deploy 
+
+##### Upstream variables ##### 
+# Les variables suivantes doivent être définies dans l'appelant
+#
+#   IMAGENAME:      nom de l'image Docker
+#   TAG:            tag de l'image Docker
+#   DEPLOY_REPO:    nom du dépôt de déploiement, dans le même projet GitLab. Le chemin sera dynamiquement évalué.
+#   CHART:          chemin du repertoire qui contient le Chart du micro-service
+#
+
+
+# ----------------------------------------------
+# Publier le tag dans les valeurs Deploy Dev
+# ----------------------------------------------
+.update_helm_values:
+  stage: promote
+  script:
+    - REPO_URL="https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_NAMESPACE}/$DEPLOY_REPO"
+    - git clone "$REPO_URL"
+    - yq e -i '.image.tag = env(TAG)' $CHART/values-dev.yaml
+    - git commit -am "Deploy IMAGENAME ${TAG}"
+    - git push origin main
