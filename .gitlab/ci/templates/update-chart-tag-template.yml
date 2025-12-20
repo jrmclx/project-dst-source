@@ -1,4 +1,3 @@
-
 # Modèle de pipeline permettant d'envoyer le TAG de l'image construite vers le dépôt de Déploiement dans le même projet
 # Clone le dépot de déploiement, écrit le Tag de le fichiers values-dev.yaml, commit et push pour publier le tag et déclehn cer le pipeline Deploy 
 
