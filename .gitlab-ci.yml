@@ -44,9 +44,6 @@ frontend:
 update_chart_frontend:
   stage: promote
   extends: .update_helm_values
-  trigger:
-    include: ".gitlab/ci/templates/update-chart-tag-template.yml"
-    strategy: depend
   variables:
     CHART: $CHARTS_DIR/frontend
   needs:
@@ -83,9 +80,6 @@ backend:
 update_chart_backend:
   stage: promote
   extends: .update_helm_values
-  trigger:
-    include: ".gitlab/ci/templates/update-chart-tag-template.yml"
-    strategy: depend
   variables:
     CHART: $CHARTS_DIR/backend
   needs:
