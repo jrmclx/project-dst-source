@@ -34,7 +34,7 @@
     - cd "$CHART"
     - pwd
     - ls -l values-dev.yaml
-    - yq e -i -y '.image.tag = env(TAG)' values-dev.yaml
+    - yq e -i '.image.tag = env(TAG)' values-dev.yaml
     - git commit -am "Deploy ${IMAGENAME} ${TAG} [skip ci]"
     - git push origin "$WORKING_BRANCH"
 
