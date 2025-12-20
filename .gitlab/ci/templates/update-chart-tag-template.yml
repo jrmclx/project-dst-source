@@ -20,9 +20,10 @@
   script:
     - WORKING_BRANCH="$CI_COMMIT_REF_NAME"
     - HELM_REPO_URL="https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_NAMESPACE}/${DEPLOY_REPO}"
+    
     - git clone "$HELM_REPO_URL"
-    - cd "$DEPLOY_REPO/$CHART"
-
+    - cd "$DEPLOY_REPO"
+    
     - |
       # Vérifie si la branche existe côté remote
       if git ls-remote --exit-code --heads origin "$WORKING_BRANCH" > /dev/null; then
@@ -32,6 +33,7 @@
         git checkout -b "$WORKING_BRANCH" origin/main
       fi
 
-    - yq e -i '.image.tag = env(TAG)' $CHART/values-dev.yaml
+    - cd "$CHART"
+    - yq e -i '.image.tag = env(TAG)' values-dev.yaml
     - git commit -am "Deploy $IMAGENAME $TAG"
     - git push origin "$WORKING_BRANCH"
