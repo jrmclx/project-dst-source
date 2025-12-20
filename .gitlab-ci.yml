@@ -27,7 +27,7 @@ frontend:
     # DEBUG_VARS --> vérifie la valeur des variables et échoue si absente. Laisser vide ou bien "disabled" pour annuler le check.
     DEBUG_VARS: "IMAGENAME TAG HOSTPORT CONTAINERPORT URL_PATH"
     IMAGENAME: frontend
-    # IMAGETAG: $TAG    # TAG: $TAG n'est pas correctement évalué, il faut changer le nom de la variable downstream.
+    # IMAGETAG: $TAG
     HOSTPORT: 6080
     CONTAINERPORT: 80
     URL_PATH: "/"
@@ -35,15 +35,13 @@ frontend:
     - changes:
         - $IMAGENAME/**   # ne se déclenche que si les fichiers du dossiers changent
     
-    - when: manual    # déclencer manuellement pour tester
+    - when: manual    # déclencer manuellement pour tester le pipeline
     
     # - when: never         # sinon, ne jamais déclencher
 
 
-# ----------------------------------------------
 # Publier le tag dans values-dev.yaml du Chart
-# ----------------------------------------------
-deploy_frontend:
+update_chart_frontend:
   stage: promote
   extends: .update_helm_values
   trigger:
@@ -51,6 +49,9 @@ deploy_frontend:
     strategy: depend
   variables:
     CHART: $CHARTS_DIR/frontend
+  needs:
+    - job: frontend
+      optional: true
 
 
 # ----------------------------------------------
@@ -73,7 +74,20 @@ backend:
     - changes:
         - $IMAGENAME/**   # ne se déclenche que si les fichiers du dossiers changent
     
-    - when: manual    # déclencer manuellement pour tester
+    - when: manual    # déclencer manuellement pour tester le pipeline
     
     # - when: never         # sinon, ne jamais déclencher
 
+
+# Publier le tag dans values-dev.yaml du Chart
+update_chart_backend:
+  stage: promote
+  extends: .update_helm_values
+  trigger:
+    include: ".gitlab/ci/templates/update-chart-tag-template.yml"
+    strategy: depend
+  variables:
+    CHART: $CHARTS_DIR/backend
+  needs:
+    - job: backend
+      optional: true
