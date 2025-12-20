@@ -6,7 +6,7 @@ include:
 
 variables:
   TAG: $CI_COMMIT_SHORT_SHA
-  DEPLOY_REPO: projet_fastapi_deploy.git
+  DEPLOY_REPO: projet_fastapi_deploy
   CHARTS_DIR: Helm
 
 
@@ -51,8 +51,6 @@ deploy_frontend:
     strategy: depend
   variables:
     CHART: $CHARTS_DIR/frontend
-  script:
-
 
 
 # ----------------------------------------------
