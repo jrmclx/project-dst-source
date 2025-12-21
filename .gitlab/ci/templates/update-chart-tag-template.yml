@@ -66,6 +66,7 @@
           echo "yq version is too old, installing latest v4+"
           INSTALL_YQ=true
         fi
+        
       else
         echo "yq not found, installing latest v4+"
         INSTALL_YQ=true
