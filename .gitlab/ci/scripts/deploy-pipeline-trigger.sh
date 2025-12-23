@@ -118,22 +118,23 @@ USERNAME="$(printf '%s' "$RESPONSE" | jq -r '.user.username')"
 
 printf "\nPipeline declenche avec succes:\n"
 printf -- "-------------------------------\n"
-printf "  Pipeline  : %s\n" "$PIPELINE_ID"
-printf "  Status    : %s\n" "$STATUS"
-printf "  Source    : %s\n" "$SOURCE"
-printf "  Web URL   : %s\n" "$WEB_URL"
-printf " ----------------------------\n"
-printf "  User      : %s\n" "$USERNAME"
-printf " ----------------------------\n"
-printf "  Ref       : %s\n" "$REF_VALUE"
-printf " ----------------------------\n"
+printf "  Pipeline   : %s\n" "$PIPELINE_ID"
+printf "  ├─ Status  : %s\n" "$STATUS"
+printf "  ├─ Source  : %s\n" "$SOURCE"
+printf "  ├─ Web URL : %s\n" "$WEB_URL"
+printf "  ├─ User    : %s\n" "$USERNAME"
+printf "  └─ Ref     : %s\n" "$REF_VALUE"
 
 # ---------------------------------------------------------------------------
 # Consultation pipeline
 # ---------------------------------------------------------------------------
+# sleep 1 # attendre 1s avant de lire l'API
 
-RESPONSE="$(curl \
+RESPONSE="$(curl -s \
   --header "PRIVATE-TOKEN: $GITLAB_ACCESS_TOKEN" \
   --url "https://gitlab.com/api/v4/projects/$PROJECT_ID/pipelines/$PIPELINE_ID/variables")"
 
-printf '%s' "$RESPONSE" | jq
+printf "\nVariables transmises au pipeline:\n"
+printf -- "-------------------------------\n"
+printf '%s' "$RESPONSE" | jq -r '.[] | select(.variable_type == "env_var") | "  \(.key) = \(.value)"'
+printf -- "-------------------------------\n"
