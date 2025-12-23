@@ -1,22 +1,139 @@
 #!/bin/sh
 
-# curl -v -X POST \
-#      --fail \
-#      -F token=glptt-qDzBT-QHsP_B5z26_sSx \
-#      -F "ref=dev" \
-#      -F "variables[UPDATED_TAG]=fc7f1054" \
-#      -F "variables[UPDATED_IMAGENAME]=frontend" \
-#      https://gitlab.com/api/v4/projects/77089053/trigger/pipeline
+set -eu
 
-curl -v -X POST \
+ENV_FILE="$HOME/.gitlab-trigger.env"
+
+
+# ---------------------------------------------------------------------------
+# Chargement du fichier d'environnement s'il existe
+# ---------------------------------------------------------------------------
+
+if [ -f "$ENV_FILE" ]; then
+    # shellcheck disable=SC1090
+    . "$ENV_FILE"
+fi
+
+# ---------------------------------------------------------------------------
+# Fonctions
+# ---------------------------------------------------------------------------
+
+require_secret() {
+    VAR_NAME="$1"
+    PROMPT="$2"
+
+    VAR_VALUE="$(eval "printf '%s' \"\${$VAR_NAME-}\"")"
+
+    if [ -z "$VAR_VALUE" ]; then
+        printf "%s: " "$PROMPT"
+        read VAR_VALUE
+
+        if [ -z "$VAR_VALUE" ]; then
+            echo "Erreur: $VAR_NAME ne peut pas etre vide."
+            exit 1
+        fi
+    fi
+
+    eval "export $VAR_NAME=\"\$VAR_VALUE\""
+}
+
+confirm_or_update() {
+    VAR_NAME="$1"
+    PROMPT="$2"
+
+    CURRENT_VALUE="$(eval "printf '%s' \"\${$VAR_NAME-}\"")"
+
+    if [ -n "$CURRENT_VALUE" ]; then
+        printf "%s [%s]: " "$PROMPT" "$CURRENT_VALUE"
+        read NEW_VALUE
+
+        if [ -z "$NEW_VALUE" ]; then
+            VAR_VALUE="$CURRENT_VALUE"
+        else
+            VAR_VALUE="$NEW_VALUE"
+        fi
+    else
+        printf "%s: " "$PROMPT"
+        read VAR_VALUE
+
+        if [ -z "$VAR_VALUE" ]; then
+            echo "Erreur: $VAR_NAME ne peut pas etre vide."
+            exit 1
+        fi
+    fi
+
+    eval "export $VAR_NAME=\"\$VAR_VALUE\""
+}
+
+persist_env() {
+    cat > "$ENV_FILE" <<EOF
+GITLAB_TRIGGER_TOKEN=$GITLAB_TRIGGER_TOKEN
+GITLAB_ACCESS_TOKEN=$GITLAB_ACCESS_TOKEN
+UPDATED_IMAGENAME=$UPDATED_IMAGENAME
+UPDATED_TAG=$UPDATED_TAG
+PROJECT_ID=$PROJECT_ID
+REF=$REF
+EOF
+
+    chmod 600 "$ENV_FILE"
+}
+
+# ---------------------------------------------------------------------------
+# Variables requises
+# ---------------------------------------------------------------------------
+
+# Tokens : jamais redemandés si existants
+require_secret GITLAB_TRIGGER_TOKEN "Saisir le GitLab trigger token"
+require_secret GITLAB_ACCESS_TOKEN  "Saisir le GitLab access token"
+
+# Variables métier : confirmation interactive
+confirm_or_update UPDATED_IMAGENAME "Nom de l image a mettre a jour"
+confirm_or_update UPDATED_TAG       "Tag de l image a mettre a jour"
+confirm_or_update PROJECT_ID        "ID du projet GitLab a mettre a jour"
+confirm_or_update REF               "Branche de travail"
+
+
+# Sauvegarde finale
+persist_env
+
+
+# ---------------------------------------------------------------------------
+# Trigger pipeline GitLab
+# ---------------------------------------------------------------------------
+
+RESPONSE="$(curl -s -X POST \
      --fail \
-     --form "token=glptt-qDzBT-QHsP_B5z26_sSx" \
-     --form "ref=dev" \
-     --form "variables[UPDATED_IMAGENAME]=frontend" \
-     --form "variables[UPDATED_TAG]=adc48abe" \
-     --url "https://gitlab.com/api/v4/projects/77089053/trigger/pipeline"
+     --form "token=$GITLAB_TRIGGER_TOKEN" \
+     --form "ref=$REF" \
+     --form "variables[UPDATED_IMAGENAME]=$UPDATED_IMAGENAME" \
+     --form "variables[UPDATED_TAG]=$UPDATED_TAG" \
+     --url "https://gitlab.com/api/v4/projects/$PROJECT_ID/trigger/pipeline")"
 
+PIPELINE_ID="$(printf '%s' "$RESPONSE" | jq -r '.id')"
+REF_VALUE="$(printf '%s' "$RESPONSE" | jq -r '.ref')"
+STATUS="$(printf '%s' "$RESPONSE" | jq -r '.status')"
+SOURCE="$(printf '%s' "$RESPONSE" | jq -r '.source')"
+WEB_URL="$(printf '%s' "$RESPONSE" | jq -r '.web_url')"
+USERNAME="$(printf '%s' "$RESPONSE" | jq -r '.user.username')"
 
-# curl \
-#   --header "PRIVATE-TOKEN: glpat-lelE-fW4Kns28vo3CCs1qm86MQp1OmhpaDNuCw.01.120y5zubh" \
-#   --url "https://gitlab.com/api/v4/projects/77089053/pipelines/2229025020/"
+printf "\nPipeline declenche avec succes:\n"
+printf -- "-------------------------------\n"
+printf "  Pipeline  : %s\n" "$PIPELINE_ID"
+printf "  Status    : %s\n" "$STATUS"
+printf "  Source    : %s\n" "$SOURCE"
+printf "  Web URL   : %s\n" "$WEB_URL"
+printf " ----------------------------\n"
+printf "  User      : %s\n" "$USERNAME"
+printf " ----------------------------\n"
+printf "  Ref       : %s\n" "$REF_VALUE"
+printf " ----------------------------\n"
+
+# ---------------------------------------------------------------------------
+# Consultation pipeline
+# ---------------------------------------------------------------------------
+
+RESPONSE="$(curl \
+  --header "PRIVATE-TOKEN: $GITLAB_ACCESS_TOKEN" \
+  --url "https://gitlab.com/api/v4/projects/$PROJECT_ID/pipelines/$PIPELINE_ID/variables")"
+
+printf '%s' "$RESPONSE" | jq
