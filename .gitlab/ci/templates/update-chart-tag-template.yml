@@ -12,12 +12,16 @@
 
 
 # ----------------------------------------------
-# Publier le tag dans les valeurs Deploy Dev
+# Publier le tag dans values.yaml du repo Deploy
+# Choix du Token
+# ├─ Project Access Token : non disponible sur GitLab Free plan
+# ├─ Personal Token : 
+# └─ CI_JOB_TOKEN : ne permet pas de faire un push sur le repo d'un autre projet
 # ----------------------------------------------
 .update_helm_values:
   script:
     - WORKING_BRANCH="$CI_COMMIT_REF_NAME"
-    - HELM_REPO_URL="https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_NAMESPACE}/${DEPLOY_REPO}"
+    - HELM_REPO_URL="https://oauth2:${REPO_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_NAMESPACE}/${DEPLOY_REPO}"
     
     - git clone "$HELM_REPO_URL"
     - cd "$DEPLOY_REPO"
@@ -31,7 +35,8 @@
         git checkout -b "$WORKING_BRANCH" origin/main
       fi
 
-    - cd "$CHART"
+    - |
+      cd "$CHART"
     - pwd
     - ls -l values-dev.yaml
     - yq e -i '.image.tag = env(TAG)' values-dev.yaml

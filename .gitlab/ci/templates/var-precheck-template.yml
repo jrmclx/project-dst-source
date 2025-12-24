@@ -1,24 +1,38 @@
-# ----------------------------------------------
-# PRECHECKS des Varialbles
-# Les passages de variables sont parfois complexes entre les différents niveaux de pipeline
-# Il est donc opportun de vérifier que les variables nécessaires sont correctement définies
-# sinon, on arrête le pipeline immédiatement
-# ----------------------------------------------
+# Job template de Pre-Check des Varialbles
+#
+#   Vérifie une liste de variables nécessaires au pipeline pour assurer qu'elles sont correctement définies.
+#   Retourne une erreur si une variable de la liste n'est pas initialisée.
+#   A exécuter en premier Stage d'un pipeline pour échouer immédiatement si les variables sont manquantes.
+# 
+#   Exemple :
+#     
+#      stages:
+#        - pre_checks
+#
+#      upstream_var_checks:
+#        extends: .var_checks_template
+#        variables:
+#          REQUIRED_VARS: "VAR1 VAR2 VAR3 VAR4 VAR5"
+#
+#   Le check est ignoré si REQUIRED_VARS est vide ou "disabled"
+#
 
 .var_checks_template:
   stage: pre_checks
+  # variables:
+  #   REQUIRED_VARS: "VAR1 VAR2 VAR3 VAR4 VAR5"
   script:
     - |
-      # Guard: skip debug if DEBUG_VARS is empty or disabled
-      if [ -z "$DEBUG_VARS" ] || [ "$DEBUG_VARS" = "disabled" ]; then
-        echo "DEBUG_VARS is empty or disabled, skipping variable checks."
+      # Guard: skip debug if REQUIRED_VARS is empty or disabled
+      if [ -z "$REQUIRED_VARS" ] || [ "$REQUIRED_VARS" = "disabled" ]; then
+        echo "REQUIRED_VARS is empty or disabled, skipping variable checks."
         exit 0
       fi
       
       echo "Checking value of required variables..."
       
       # Convert string to array
-      IFS=' ' read -r -a VARS_ARRAY <<< "$DEBUG_VARS"
+      IFS=' ' read -r -a VARS_ARRAY <<< "$REQUIRED_VARS"
 
       for VAR in "${VARS_ARRAY[@]}"; do
         if [ -z "${!VAR}" ]; then
