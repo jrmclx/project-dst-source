@@ -54,6 +54,7 @@ update_chart_frontend:
 
 
 fallback_trigger_deploy:
+  stage: promote
   extends: .api_trigger_pipeline
   needs:
     - job: update_chart_frontend
@@ -106,6 +107,7 @@ update_chart_backend:
 
 
 fallback_trigger_deploy:
+  stage: promote
   extends: .api_trigger_pipeline
   needs:
     - job: update_chart_backend
