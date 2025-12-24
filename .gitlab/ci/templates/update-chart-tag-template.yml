@@ -1,33 +1,44 @@
 # Modèle de pipeline permettant d'envoyer le TAG de l'image construite vers le dépôt de Déploiement dans le même projet
-# Clone le dépot de déploiement, écrit le Tag de le fichiers values-dev.yaml, commit et push pour publier le tag et déclehn cer le pipeline Deploy 
+# Clone le dépot de déploiement, écrit le Tag de le fichiers values.yaml, commit et push pour publier le tag et déclehn cer le pipeline Deploy 
 
 ##### Upstream variables ##### 
 # Les variables suivantes doivent être définies dans l'appelant
 #
 #   IMAGENAME:      nom de l'image Docker
 #   TAG:            tag de l'image Docker
-#   DEPLOY_REPO:    nom du dépôt de déploiement, dans le même projet GitLab. Le chemin sera dynamiquement évalué.
-#   CHART:          chemin du repertoire qui contient le Chart du micro-service
+#   DEPLOY_PROJECT: nom du projet de déploiement, dans le même groupe GitLab.
+#   CHART_PATH:     chemin du repertoire qui contient le Chart du micro-service
 #
 
-
-# ----------------------------------------------
+# -----------------------------------------------------------------------------------------------------------------------------------------------
 # Publier le tag dans values.yaml du repo Deploy
-# Choix du Token
-# ├─ Project Access Token : non disponible sur GitLab Free plan
-# ├─ Personal Token : 
-# └─ CI_JOB_TOKEN : ne permet pas de faire un push sur le repo d'un autre projet
-# ----------------------------------------------
-.update_helm_values:
+#
+# Choix du Token (rappel)
+# ├─ Project Access Token :   git clone https://${GROUP_TOKEN}@...                  non disponible sur GitLab Free plan
+# ├─ Personal Access Token :  git clone https://oauth2:${PERSO_TOKEN}@...           agit au nom de l'utilisateur
+# └─ GitLab Job Token :       git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@... ne permet pas de faire un push sur le repo d'un autre projet
+# -----------------------------------------------------------------------------------------------------------------------------------------------
+.push_tag_deploy_dev:
+  variables:
+    VALUES_FILE: values-dev.yaml
+    TOKEN: $REPO_TOKEN
+    USERNAME: oauth2
+    REPO: $DEPLOY_PROJECT
+  before_script:
+    - |
+      if [ "$USERNAME" = "gitlab-ci-token" ]; then
+        echo "ERROR: gitlab-ci-token can't push to a different project"
+        exit 1
+      fi
   script:
     - WORKING_BRANCH="$CI_COMMIT_REF_NAME"
-    - HELM_REPO_URL="https://oauth2:${REPO_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_NAMESPACE}/${DEPLOY_REPO}"
+    - HELM_REPO_URL="https://${USERNAME}:${TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_NAMESPACE}/${REPO}"
     
     - git clone "$HELM_REPO_URL"
-    - cd "$DEPLOY_REPO"
+    - cd "$REPO"
     
     - |
-      # Vérifie si la branche existe côté remote
+      # Check if branch exists on remote...
       if git ls-remote --exit-code --heads origin "$WORKING_BRANCH" > /dev/null; then
         git checkout "$WORKING_BRANCH"
       else
@@ -36,19 +47,78 @@
       fi
 
     - |
-      echo "Updating tag in $CHART/values-dev.yaml"
-      cd "$CHART"
-      pwd
-      ls -l values-dev.yaml
-      yq e -i '.image.tag = env(TAG)' values-dev.yaml
+      echo "Updating tag in $CHART_PATH/$VALUES_FILE"
+      cd "$CHART_PATH"
+      ls -l $VALUES_FILE
 
-    - git commit -am "Deploy ${IMAGENAME} ${TAG}"
-    - git push origin "$WORKING_BRANCH"
+      yq e -i '.image.tag = env(TAG)' $VALUES_FILE
+
+    - |
+      if ! git diff --quiet -- "$VALUES_FILE"; then
+        echo "Image tag changed in $VALUES_FILE, committing and pushing..."
+        git add $VALUES_FILE
+        git commit -m "Deploy ${IMAGENAME} ${TAG}"
+        git push origin "$WORKING_BRANCH"
+      else
+        echo "No change in $VALUES_FILE, nothing to deploy"
+      fi
 
 
-# ----------------------------------------------
+# -----------------------------------------------------------------------------------------
+# Trigger pipeline via API
+#  - Nécessaire en l'absence de Token permettant le push sur le repo Deploy
+#  - Transmets les variables nécessaires au déclenchement du pipeline
+# -----------------------------------------------------------------------------------------
+.api_trigger_pipeline:
+  variables:
+    UPDATED_IMAGENAME: "must_exist"
+    UPDATED_TAG: $TAG
+    PROJECT: $DEPLOY_PROJECT    
+    REF: "deploy_remote_branch"
+  script:
+    - |
+      PROJECT_PATH=${CI_PROJECT_NAMESPACE}/${PROJECT}
+      ENCODED_PATH=$(printf '%s' "$PROJECT_PATH" | sed 's|/|%2F|g')
+      PROJECT_ID = $ENCODED_PATH
+
+    - |
+      echo "Showing variables for debug purpose..."
+      echo "UPDATED_IMAGENAME = $UPDATED_IMAGENAME"
+      echo "UPDATED_TAG = $UPDATED_TAG"
+      echo "REF = $REF"
+      echo "PROJECT = $PROJECT"
+      echo "PROJECT_ID = $PROJECT_ID"
+
+    - >
+      RESPONSE="$(curl -s -X POST \
+      --fail \
+      --form "token=$DEPLOY_TRIGGER_TOKEN" \
+      --form "ref=$REF" \
+      --form "variables[UPDATED_IMAGENAME]=$UPDATED_IMAGENAME" \
+      --form "variables[UPDATED_TAG]=$UPDATED_TAG" \
+      --url "https://gitlab.com/api/v4/projects/$PROJECT_ID/trigger/pipeline")"
+
+    - |
+      PIPELINE_ID="$(printf '%s' "$RESPONSE" | jq -r '.id')"
+      REF_VALUE="$(printf '%s' "$RESPONSE" | jq -r '.ref')"
+      STATUS="$(printf '%s' "$RESPONSE" | jq -r '.status')"
+      SOURCE="$(printf '%s' "$RESPONSE" | jq -r '.source')"
+      WEB_URL="$(printf '%s' "$RESPONSE" | jq -r '.web_url')"
+      USERNAME="$(printf '%s' "$RESPONSE" | jq -r '.user.username')"
+
+      printf "\nPipeline declenche avec succes:\n"
+      printf -- "-------------------------------\n"
+      printf "  Pipeline   : %s\n" "$PIPELINE_ID"
+      printf "  ├─ Status  : %s\n" "$STATUS"
+      printf "  ├─ Source  : %s\n" "$SOURCE"
+      printf "  ├─ Web URL : %s\n" "$WEB_URL"
+      printf "  ├─ User    : %s\n" "$USERNAME"
+      printf "  └─ Ref     : %s\n" "$REF_VALUE"
+
+
+# -----------------------------------------------------------------------------------------
 # Installer YQ latest si besoin
-# ----------------------------------------------
+# -----------------------------------------------------------------------------------------
 .install_yq_v4:
   before_script:
     - |

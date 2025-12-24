@@ -5,7 +5,7 @@ include:
 
 variables:
   TAG: $CI_COMMIT_SHORT_SHA
-  DEPLOY_REPO: projet_fastapi_deploy
+  DEPLOY_PROJECT: projet_fastapi_deploy
   CHARTS_DIR: Helm
 
 
@@ -43,13 +43,27 @@ update_chart_frontend:
   stage: promote
   extends:
     - .install_yq_v4
-    - .update_helm_values
+    - .push_tag_deploy_dev
   variables:
     IMAGENAME: frontend
-    CHART: $CHARTS_DIR/frontend
+    CHART_PATH: $CHARTS_DIR/frontend
+    VALUES_FILE: values-dev.yaml
   needs:
     - job: frontend
       optional: true
+
+
+fallback_trigger_deploy:
+  extends: .api_trigger_pipeline
+  needs:
+    - job: update_chart_frontend
+      optional: true
+  when: on_failure
+  variables:
+    UPDATED_IMAGENAME: frontend
+    REF: dev
+  script:
+    - echo "FALLBACK ':' tag Push to Deploy repo was skipped or failed, triggering pipeline via API..."
 
 
 # ----------------------------------------------
@@ -81,10 +95,24 @@ update_chart_backend:
   stage: promote
   extends:
     - .install_yq_v4
-    - .update_helm_values
+    - .push_tag_deploy_dev
   variables:
     IMAGENAME: backend
-    CHART: $CHARTS_DIR/backend
+    CHART_PATH: $CHARTS_DIR/backend
+    VALUES_FILE: values-dev.yaml
   needs:
     - job: backend
       optional: true
+
+
+fallback_trigger_deploy:
+  extends: .api_trigger_pipeline
+  needs:
+    - job: update_chart_backend
+      optional: true
+  when: on_failure
+  variables:
+    UPDATED_IMAGENAME: frontend
+    REF: dev
+  script:
+    - echo "FALLBACK ':' tag Push to Deploy repo was skipped or failed, triggering pipeline via API..."
