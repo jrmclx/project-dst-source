@@ -62,7 +62,7 @@ fallback_trigger_frontend:
     - job: update_chart_frontend
       artifacts: true
   rules:
-    - if: '$TAG_PUSHED != "success"
+    - if: '$TAG_PUSHED != "success"'
   variables:
     UPDATED_IMAGENAME: frontend
     REF: dev
@@ -112,10 +112,9 @@ fallback_trigger_backend:
   extends: .api_trigger_pipeline
   needs:
     - job: update_chart_backend
-      optional: true
-  when: on_failure
+      artifacts: true
+  rules:
+    - if: '$TAG_PUSHED != "success"'
   variables:
     UPDATED_IMAGENAME: frontend
     REF: dev
-  script:
-    - echo "FALLBACK ':' tag Push to Deploy repo was skipped or failed, triggering pipeline via API..."
