@@ -5,9 +5,10 @@ include:
 
 variables:
   TAG: $CI_COMMIT_SHORT_SHA
+  CHARTS_DIR: Helm
   DEPLOY_PROJECT: projet_fastapi_deploy
   DEPLOY_TOKEN: "" # REPO_TOKEN
-  CHARTS_DIR: Helm
+  TRIGGER_TOKEN: $DEPLOY_TRIGGER_TOKEN
 
 
 stages:
@@ -59,8 +60,9 @@ fallback_trigger_frontend:
   extends: .api_trigger_pipeline
   needs:
     - job: update_chart_frontend
-      optional: true
-  when: on_failure
+      artifacts: true
+  rules:
+    - if: '$TAG_PUSHED != "success"
   variables:
     UPDATED_IMAGENAME: frontend
     REF: dev
