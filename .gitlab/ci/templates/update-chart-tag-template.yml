@@ -36,11 +36,13 @@
       fi
 
     - |
+      echo "Updating tag in $CHART/values-dev.yaml"
       cd "$CHART"
-    - pwd
-    - ls -l values-dev.yaml
-    - yq e -i '.image.tag = env(TAG)' values-dev.yaml
-    - git commit -am "Deploy ${IMAGENAME} ${TAG} [skip ci]"
+      pwd
+      ls -l values-dev.yaml
+      yq e -i '.image.tag = env(TAG)' values-dev.yaml
+
+    - git commit -am "Deploy ${IMAGENAME} ${TAG}"
     - git push origin "$WORKING_BRANCH"
 
 
@@ -50,6 +52,8 @@
 .install_yq_v4:
   before_script:
     - |
+      echo "Installing YQ..."
+      
       set -e
 
       REQUIRED_MAJOR=4

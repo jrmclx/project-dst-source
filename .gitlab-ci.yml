@@ -1,7 +1,6 @@
 # Pipeline principal - Orchestrateur des pipelines enfants (propre à chaque image)
 
 include:
-  # - local: '/ci-templates/.ci-integration-tests.yml'
   - local: '.gitlab/ci/templates/update-chart-tag-template.yml'
 
 variables:
@@ -24,10 +23,9 @@ frontend:
     include: ".gitlab/ci/templates/build-template.yml"
     strategy: depend
   variables:
-    # DEBUG_VARS --> vérifie la valeur des variables et échoue si absente. Laisser vide ou bien "disabled" pour annuler le check.
-    DEBUG_VARS: "IMAGENAME TAG HOSTPORT CONTAINERPORT URL_PATH"
+    # vérifie la valeur des variables et échoue si absente. Laisser vide ou bien "disabled" pour annuler le check.
+    REQUIRED_VARS: "IMAGENAME TAG HOSTPORT CONTAINERPORT URL_PATH"
     IMAGENAME: frontend
-    # IMAGETAG: $TAG
     HOSTPORT: 6080
     CONTAINERPORT: 80
     URL_PATH: "/"
@@ -47,6 +45,7 @@ update_chart_frontend:
     - .install_yq_v4
     - .update_helm_values
   variables:
+    IMAGENAME: frontend
     CHART: $CHARTS_DIR/frontend
   needs:
     - job: frontend
@@ -62,10 +61,9 @@ backend:
     include: ".gitlab/ci/templates/build-template.yml"    # .gitlab/ci/templates/build-template.yml
     strategy: depend
   variables:
-    # DEBUG_VARS --> vérifie la valeur des variables et échoue si absente. Laisser vide ou bien "disabled" pour annuler le check.
-    DEBUG_VARS: "IMAGENAME TAG HOSTPORT CONTAINERPORT URL_PATH"
+    # vérifie la valeur des variables et échoue si absente. Laisser vide ou bien "disabled" pour annuler le check.
+    REQUIRED_VARS: "IMAGENAME TAG HOSTPORT CONTAINERPORT URL_PATH"
     IMAGENAME: backend
-    # IMAGETAG: $TAG
     HOSTPORT: 7800
     CONTAINERPORT: 8000
     URL_PATH: "/api/v1/utils/health-check/"
@@ -85,6 +83,7 @@ update_chart_backend:
     - .install_yq_v4
     - .update_helm_values
   variables:
+    IMAGENAME: backend
     CHART: $CHARTS_DIR/backend
   needs:
     - job: backend
