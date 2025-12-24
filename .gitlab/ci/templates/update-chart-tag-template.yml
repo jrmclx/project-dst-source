@@ -104,7 +104,7 @@
     - |
       PROJECT_PATH=${CI_PROJECT_NAMESPACE}/${PROJECT}
       ENCODED_PATH=$(printf '%s' "$PROJECT_PATH" | sed 's|/|%2F|g')
-      PROJECT_ID = $ENCODED_PATH
+      PROJECT_ID=$ENCODED_PATH
 
     - |
       echo "Showing variables for debug purpose..."
