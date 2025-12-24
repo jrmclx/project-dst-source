@@ -19,6 +19,7 @@
 # └─ GitLab Job Token :       git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@... ne permet pas de faire un push sur le repo d'un autre projet
 # -----------------------------------------------------------------------------------------------------------------------------------------------
 .push_tag_deploy_dev:
+  allow_failure: true
   variables:
     VALUES_FILE: values-dev.yaml
     TOKEN: $DEPLOY_TOKEN
@@ -31,7 +32,7 @@
         exit 1
       fi
       
-      if [ -z "$USERNAME" ]; then
+      if [ -z "$TOKEN" ]; then
         echo "ERROR: Token can't be empty, skipping tag push"
         exit 1
       fi
@@ -81,6 +82,8 @@
     UPDATED_TAG: $TAG
     PROJECT: $DEPLOY_PROJECT    
     REF: "deploy_remote_branch"
+  before_script:
+    - echo "FALLBACK ':' tag Push to Deploy repo was skipped or failed, triggering pipeline via API..."
   script:
     - |
       PROJECT_PATH=${CI_PROJECT_NAMESPACE}/${PROJECT}

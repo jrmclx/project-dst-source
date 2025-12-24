@@ -64,8 +64,6 @@ fallback_trigger_frontend:
   variables:
     UPDATED_IMAGENAME: frontend
     REF: dev
-  script:
-    - echo "FALLBACK ':' tag Push to Deploy repo was skipped or failed, triggering pipeline via API..."
 
 
 # ----------------------------------------------
