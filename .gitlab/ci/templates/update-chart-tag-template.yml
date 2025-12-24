@@ -21,7 +21,7 @@
 .push_tag_deploy_dev:
   variables:
     VALUES_FILE: values-dev.yaml
-    TOKEN: $REPO_TOKEN
+    TOKEN: $DEPLOY_TOKEN
     USERNAME: oauth2
     REPO: $DEPLOY_PROJECT
   before_script:

@@ -6,6 +6,7 @@ include:
 variables:
   TAG: $CI_COMMIT_SHORT_SHA
   DEPLOY_PROJECT: projet_fastapi_deploy
+  DEPLOY_TOKEN: "" # REPO_TOKEN
   CHARTS_DIR: Helm
 
 
@@ -53,7 +54,7 @@ update_chart_frontend:
       optional: true
 
 
-fallback_trigger_deploy:
+fallback_trigger_frontend:
   stage: promote
   extends: .api_trigger_pipeline
   needs:
@@ -106,7 +107,7 @@ update_chart_backend:
       optional: true
 
 
-fallback_trigger_deploy:
+fallback_trigger_backend:
   stage: promote
   extends: .api_trigger_pipeline
   needs:
