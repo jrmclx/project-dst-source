@@ -117,13 +117,13 @@
       echo "PROJECT_ID = $PROJECT_ID"
 
     - >
-      RESPONSE="$(curl -v -X POST \
-      --fail --show-error \
-      --form "token=$TRIGGER_TOKEN" \
-      --form "ref=$REF" \
-      --form "variables[UPDATED_IMAGENAME]=$UPDATED_IMAGENAME" \
-      --form "variables[UPDATED_TAG]=$UPDATED_TAG" \
-      --url "https://gitlab.com/api/v4/projects/$PROJECT_ID/trigger/pipeline")"
+      RESPONSE="$(curl -v -X POST
+      --fail --show-error
+      --form "token=$TRIGGER_TOKEN"
+      --form "ref=$REF"
+      --form "variables[UPDATED_IMAGENAME]=$UPDATED_IMAGENAME"
+      --form "variables[UPDATED_TAG]=$UPDATED_TAG"
+      --url "${CI_API_V4_URL}/projects/$PROJECT_ID/trigger/pipeline")"
 
     - |
       PIPELINE_ID="$(printf '%s' "$RESPONSE" | jq -r '.id')"
