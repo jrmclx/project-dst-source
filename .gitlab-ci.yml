@@ -133,8 +133,8 @@ aggregate_images:
         echo "UPDATED_IMAGES=$UPDATED_IMAGES" >> deploy.env
       fi
     
-    - echo "$UPDATED_IMAGES"
-    - cat deploy.env
+      echo "$UPDATED_IMAGES"
+      cat deploy.env
 
   artifacts:
     reports:
@@ -158,6 +158,8 @@ trigger_deploy:
     project: $CI_PROJECT_NAMESPACE/projet_fastapi_deploy
     branch: $CI_COMMIT_REF_NAME
     strategy: depend
+  inherit:
+    variables: false
   variables:
     UPDATED_IMAGES: $UPDATED_IMAGES
     UPDATED_TAG: $TAG
