@@ -9,7 +9,7 @@ RUN npm install
 
 COPY ./ /app/
 
-ARG VITE_API_URL=${VITE_API_URL}
+# ARG VITE_API_URL=${VITE_API_URL}
 
 RUN npm run build
 
@@ -21,3 +21,11 @@ COPY --from=build-stage /app/dist/ /usr/share/nginx/html
 
 COPY ./nginx.conf /etc/nginx/conf.d/default.conf
 COPY ./nginx-backend-not-found.conf /etc/nginx/extra-conf.d/backend-not-found.conf
+
+# Copier entrypoint qui va créer config.js au runtime
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
+
+CMD ["nginx", "-g", "daemon off;"]

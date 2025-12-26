@@ -1,0 +1,197 @@
+# Modèles de Jobs permettant d'envoyer le TAG de l'image construite vers le pipeline de Déploiement.
+
+# -------------------------------------------------------------------------------------------
+# PUSH du tag dans le Helm Chart du micro-service
+#  - clone le dépot de déploiement
+#  - écrit le Tag dans le fichiers values.yaml du Chart
+#  - commit + push pour déclencher le pipeline Deploy
+#
+# Prérequis: 
+#  - le projet de déploiement doit appartenir au même groupe GitLab que le projet du pipline
+#  - un Access Token avec les permissions suffisantes a été défini dans le pipeline
+#  - YQ est installé sur le runner
+#  - les variables suivantes doivent être définies dans les jobs qui importent le template
+#
+#   IMAGENAME:    nom de l'image Docker
+#   CHART_PATH:   chemin du repertoire qui contient le Chart du micro-service
+#   VALUES_FILE:  nom du fichier de valeurs du Chart où mettre à jour le tag
+# -------------------------------------------------------------------------------------------
+.push_tag_deploy_dev:
+  variables:
+    IMAGENAME: "override me"
+    CHART_PATH: "override me"
+    VALUES_FILE: "override me"
+    REPO: $DEPLOY_PROJECT
+    TOKEN: $DEPLOY_PROJECT_TOKEN
+    USERNAME: oauth2
+  before_script:
+    - |
+      if [ "$USERNAME" = "gitlab-ci-token" ]; then
+        echo "INFO: CI Job token can't push to a different project, skipping tag push"
+        SKIP_PUSH="true"
+      fi
+
+    - |  
+      if [ -z "$TOKEN" ]; then
+        echo "INFO: Token can't be empty, skipping tag push"
+        SKIP_PUSH="true"
+      fi
+
+    - |
+      if [ "$SKIP_PUSH" = "true" ]; then
+        echo "TAG_PUSHED=skipped" > result.env
+        exit 0
+      fi
+
+  script:
+    - |
+      echo "Trying to push Tag to Deploy Repo"
+
+      set -e
+
+      trap 'echo "TAG_PUSHED=failure" > result.env' ERR
+
+      WORKING_BRANCH="$CI_COMMIT_REF_NAME"
+      HELM_REPO_URL="https://${USERNAME}:${TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_NAMESPACE}/${REPO}"
+
+      git clone "$HELM_REPO_URL"
+      cd "$REPO"  
+
+      # Check if branch exists on remote...
+      if git ls-remote --exit-code --heads origin "$WORKING_BRANCH" > /dev/null; then
+        git checkout "$WORKING_BRANCH"
+      else
+        echo "Branch $WORKING_BRANCH does not exist in deploy repo, creating it"
+        git checkout -b "$WORKING_BRANCH" origin/main
+      fi
+
+      echo "Updating tag in $CHART_PATH/$VALUES_FILE"
+      cd "$CHART_PATH"
+      ls -l $VALUES_FILE
+
+      yq e -i '.image.tag = env(TAG)' $VALUES_FILE
+
+      if ! git diff --quiet -- "$VALUES_FILE"; then
+        echo "Image tag changed in $VALUES_FILE, committing and pushing..."
+        git add $VALUES_FILE
+        git commit -m "Deploy ${IMAGENAME} ${TAG}"
+        git push origin "$WORKING_BRANCH"
+      else
+        echo "No change in $VALUES_FILE, nothing to deploy"
+      fi
+      
+      echo "TAG_PUSHED=success" > result.env
+
+  artifacts:
+      when: always
+      reports:
+        dotenv: result.env
+
+
+# -------------------------------------------------------------------------------------------
+# Trigger pipeline via API
+#  - Déclenche le pipeline Deploy par call API
+#  - Transmets les variables nécessaires au déclenchement sélectif du pipeline
+#
+# Prérequis: 
+#  - un Pipeline trigger Token doit exister sur le projet cible et passé en variable
+#  - les variables suivantes doivent être définies dans les jobs qui importent le template
+#
+#   IMAGENAME:    nom de l'image Docker
+#   REF:          branche du repo Deploy sur laquelle va être exécuté le pipeline
+# -------------------------------------------------------------------------------------------
+.api_trigger_pipeline:
+  variables:
+    PROJECT: $DEPLOY_PROJECT
+    TOKEN: $TRIGGER_TOKEN
+    IMAGENAME: "override me"
+    UPDATED_TAG: $TAG
+    REF: "remote_branch"
+  rules:
+    - if: '$TAG_PUSHED != "success"'
+  before_script:
+    - echo "FALLBACK ':' tag Push to Deploy repo was skipped or failed, triggering pipeline via API..."
+  script:
+    - |
+      PROJECT_PATH=${CI_PROJECT_NAMESPACE}/${PROJECT}
+      ENCODED_PATH=$(printf '%s' "$PROJECT_PATH" | sed 's|/|%2F|g')
+      PROJECT_ID=$ENCODED_PATH
+
+    - |
+      echo "Showing variables for debug purpose..."
+      echo "TAG_PUSHED = $TAG_PUSHED"
+      echo "IMAGENAME = $IMAGENAME"
+      echo "UPDATED_TAG = $UPDATED_TAG"
+      echo "REF = $REF"
+      echo "PROJECT = $PROJECT"
+      echo "PROJECT_ID = $PROJECT_ID"
+
+    - >
+      RESPONSE="$(curl -X POST
+      --fail --show-error
+      --form "token=$TOKEN"
+      --form "ref=$REF"
+      --form "variables[UPDATED_IMAGENAME]=$IMAGENAME"
+      --form "variables[UPDATED_TAG]=$UPDATED_TAG"
+      --url "${CI_API_V4_URL}/projects/$PROJECT_ID/trigger/pipeline")"
+
+    - |
+      PIPELINE_ID="$(printf '%s' "$RESPONSE" | jq -r '.id')"
+      REF_VALUE="$(printf '%s' "$RESPONSE" | jq -r '.ref')"
+      STATUS="$(printf '%s' "$RESPONSE" | jq -r '.status')"
+      SOURCE="$(printf '%s' "$RESPONSE" | jq -r '.source')"
+      WEB_URL="$(printf '%s' "$RESPONSE" | jq -r '.web_url')"
+      USERNAME="$(printf '%s' "$RESPONSE" | jq -r '.user.username')"
+
+      printf "\nPipeline successfully triggered:\n"
+      printf -- "-------------------------------\n"
+      printf "  Pipeline   : %s\n" "$PIPELINE_ID"
+      printf "  ├─ Status  : %s\n" "$STATUS"
+      printf "  ├─ Source  : %s\n" "$SOURCE"
+      printf "  ├─ Web URL : %s\n" "$WEB_URL"
+      printf "  ├─ User    : %s\n" "$USERNAME"
+      printf "  └─ Ref     : %s\n" "$REF_VALUE"
+
+
+# -----------------------------------------------------------------------------------------
+# Installer YQ latest si besoin
+# -----------------------------------------------------------------------------------------
+.install_yq_v4:
+  before_script:
+    - |
+      echo "Installing YQ..."
+      
+      set -e
+
+      REQUIRED_MAJOR=4
+      INSTALL_DIR="$HOME/bin"
+      YQ_BIN="$INSTALL_DIR/yq"
+
+      mkdir -p "$INSTALL_DIR"
+      export PATH="$INSTALL_DIR:$PATH"
+
+      INSTALL_YQ=false
+
+      if command -v yq >/dev/null 2>&1; then
+        CURRENT_VERSION="$(yq --version | sed -E 's/[^0-9]*([0-9]+).*/\1/')"
+        echo "Found yq version $CURRENT_VERSION"
+
+        if [ "$CURRENT_VERSION" -ge "$REQUIRED_MAJOR" ]; then
+          echo "yq version is sufficient, skipping installation"
+        else
+          echo "yq version is too old, installing latest v4+"
+          INSTALL_YQ=true
+        fi
+        
+      else
+        echo "yq not found, installing latest v4+"
+        INSTALL_YQ=true
+      fi
+
+      if [ "$INSTALL_YQ" = true ]; then
+        curl -sSL https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 \
+          -o "$YQ_BIN"
+        chmod +x "$YQ_BIN"
+      fi
+
+      yq --version

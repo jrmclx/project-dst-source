@@ -1,0 +1,51 @@
+# Job template de Pre-Check des Varialbles
+
+# -------------------------------------------------------------------------------------------
+#   Vérifie une liste de variables nécessaires au pipeline pour assurer qu'elles sont correctement définies.
+#   Retourne une erreur si une variable de la liste n'est pas initialisée.
+#   A exécuter en premier Stage d'un pipeline pour échouer immédiatement si les variables sont manquantes.
+# 
+#   Exemple :
+#     
+#      stages:
+#        - pre_checks
+#
+#      upstream_var_checks:
+#        extends: .var_checks_template
+#        variables:
+#          REQUIRED_VARS: "VAR1 VAR2 VAR3 VAR4 VAR5"
+# -------------------------------------------------------------------------------------------
+#   Le check est ignoré si REQUIRED_VARS: "" ou "disabled"
+# -------------------------------------------------------------------------------------------
+
+.var_checks_template:
+  stage: pre_checks
+  # variables:
+  #   REQUIRED_VARS: "VAR1 VAR2 VAR3 VAR4 VAR5"
+  script:
+    - |
+      # Guard: skip debug if REQUIRED_VARS is empty or disabled
+      if [ -z "$REQUIRED_VARS" ] || [ "$REQUIRED_VARS" = "disabled" ]; then
+        echo "REQUIRED_VARS is empty or disabled, skipping variable checks."
+        exit 0
+      fi
+      
+      echo "Checking value of required variables..."
+      
+      # Convert string to array
+      IFS=' ' read -r -a VARS_ARRAY <<< "$REQUIRED_VARS"
+
+      for VAR in "${VARS_ARRAY[@]}"; do
+        if [ -z "${!VAR}" ]; then
+          echo "Error: Environment variable '$VAR' is NOT set."
+          MISSING=1
+        else
+          echo "$VAR = '${!VAR}'"
+        fi
+      done
+
+      # Fail job if at least one variable is missing
+      if [ "$MISSING" = 1 ]; then
+        echo "Aborting: Missing environment variables."
+        exit 1
+      fi

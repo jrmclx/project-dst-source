@@ -1,0 +1,52 @@
+# Child pipeline du service "Backend"
+
+# Variables définies par l'appelant
+#
+#   IMAGENAME:      nom de l'image Docker (et du dossier contenant le code source)
+#   TAG:            tag de l'image Docker (par exemple, $CI_COMMIT_SHORT_SHA ou "latest")
+#   HOSTPORT:       port exposé sur l'hôte pour accéder au service via Docker
+#   CONTAINERPORT:  port exposé dans le conteneur Docker
+#   URL_PATH:       chemin URL pour vérifier que le service est bien démarré (ex: "api/v1/health")
+#
+
+
+include:
+  - local: '.gitlab/ci/templates/var-precheck-template.yml'
+  - local: '.gitlab/ci/templates/build-template.yml'
+
+
+stages:
+  - pre_checks  # importé
+  - build       # importé
+  - run         # importé
+  - push        # importé
+
+
+# ----------------------------------------------
+# Stage 'pre_checks' importé du template
+# ----------------------------------------------
+upstream_var_checks:
+  extends: .var_checks_template
+  variables:
+    REQUIRED_VARS: "IMAGENAME TAG HOSTPORT CONTAINERPORT URL_PATH"
+
+
+# ----------------------------------------------
+# Build - importé du template
+# ----------------------------------------------
+# build_image:
+#   variables:
+
+
+# ----------------------------------------------
+# Run - importé du template
+# ----------------------------------------------
+# run_image:
+#   variables:
+
+
+# ----------------------------------------------
+# Push - importé du template
+# ----------------------------------------------
+# push_image:
+#   variables:
