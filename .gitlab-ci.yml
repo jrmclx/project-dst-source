@@ -64,20 +64,20 @@ frontend_build:
     URL_PATH: "/"
 
 
-backend_build:
-  stage: build_push
-  extends: .job_rules
-  trigger:
-    include: ".gitlab/ci/templates/build-template.yml"    # .gitlab/ci/templates/build-template.yml
-    strategy: depend
-  variables:
-    # vérifie la valeur des variables et échoue si absente. Laisser vide ou bien "disabled" pour annuler le check.
-    REQUIRED_VARS: "IMAGENAME TAG HOSTPORT CONTAINERPORT URL_PATH"
+# backend_build:
+#   stage: build_push
+#   extends: .job_rules
+#   trigger:
+#     include: ".gitlab/ci/templates/build-template.yml"    # .gitlab/ci/templates/build-template.yml
+#     strategy: depend
+#   variables:
+#     # vérifie la valeur des variables et échoue si absente. Laisser vide ou bien "disabled" pour annuler le check.
+#     REQUIRED_VARS: "IMAGENAME TAG HOSTPORT CONTAINERPORT URL_PATH"
     
-    IMAGENAME: backend
-    HOSTPORT: 7800
-    CONTAINERPORT: 8000
-    URL_PATH: "/api/v1/utils/health-check/"
+#     IMAGENAME: backend
+#     HOSTPORT: 7800
+#     CONTAINERPORT: 8000
+#     URL_PATH: "/api/v1/utils/health-check/"
 
 
 # ----------------------------------------------
@@ -100,19 +100,19 @@ frontend_detected:
     paths:
       - frontend.image
 
-backend_detected:
-  stage: aggregation
-  extends: .job_rules
-  variables:
-    IMAGENAME: backend
-  needs:
-    - job: backend_build
-  script:
-    - echo "backend" > backend.image
-  artifacts:
-    when: on_success
-    paths:
-      - backend.image
+# backend_detected:
+#   stage: aggregation
+#   extends: .job_rules
+#   variables:
+#     IMAGENAME: backend
+#   needs:
+#     - job: backend_build
+#   script:
+#     - echo "backend" > backend.image
+#   artifacts:
+#     when: on_success
+#     paths:
+#       - backend.image
 
 aggregate_images:
   stage: aggregation
@@ -154,7 +154,8 @@ trigger_deploy:
   trigger:
     # déclencher le pipeline deploy sur le même nom de branche que App
     # project doit être hardcodé, expansion de variable non supporté par ce champ
-    project: jrm-grp/dst-project/projet_fastapi_deploy
+    # project: jrm-grp/dst-project/projet_fastapi_deploy
+    project: $CI_PROJECT_NAMESPACE/projet_fastapi_deploy
     branch: $CI_COMMIT_REF_NAME
     strategy: depend
   variables:
