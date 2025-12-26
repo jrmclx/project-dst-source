@@ -10,14 +10,11 @@ variables:
   # Chemin vers le repertoire qui contient les Charts Helm
   CHARTS_DIR: Helm
   
-  # Nom du projet de Déploiement, situé dans le même groupe GitLab
+  # Projet de Déploiement
   DEPLOY_PROJECT: projet_fastapi_deploy
-  
-  # Access Token pour push sur le repo du projet Deploy
-  DEPLOY_PROJECT_TOKEN: "" # GROUP_REPO_TOKEN
-  
-  # Trigger Token du projet Deploy, employé en fallback
-  TRIGGER_TOKEN: $TRIGGER_TOKEN_DEPLOY
+  DEPLOY_PROJECT_GROUP: $CI_PROJECT_NAMESPACE
+  # DEPLOY_ACCESS_TOKEN: "" # GROUP_REPO_TOKEN
+  # DEPLOY_TRIGGER_TOKEN: $TRIGGER_TOKEN_DEPLOY
   
   # Permettre le déclenchement manuel des jobs (utile en test)
   MANUAL_MODE: true
@@ -30,25 +27,15 @@ stages:
 
 
 # ----------------------------------------------
-# Frontend job - Trigger Build, Run, Push child
+# Job Rules
 # ----------------------------------------------
-frontend:
-  stage: build_push
-  trigger:
-    include: ".gitlab/ci/templates/build-template.yml"
-    strategy: depend
-  variables:
-    # vérifie la valeur des variables et échoue si absente. Laisser vide ou bien "disabled" pour annuler le check.
-    REQUIRED_VARS: "IMAGENAME TAG HOSTPORT CONTAINERPORT URL_PATH"
-    
-    IMAGENAME: frontend
-    HOSTPORT: 6080
-    CONTAINERPORT: 80
-    URL_PATH: "/"
 
+# Template de Rules de présence des jobs du pipeline
+.job_rules:
   rules:
+    # déclencher si les fichiers du dossiers changent (matche aussi sur trigger, sans git diff)
     - changes:
-        - $IMAGENAME/**   # ne se déclenche que si les fichiers du dossiers changent
+        - $IMAGENAME/**   
     
     # fallback de déclenchement manuel en mode Dev
     - if: '$MANUAL_MODE =~ /^(1|true|yes)$/'
@@ -58,39 +45,28 @@ frontend:
     - when: never
 
 
-# # Promouvoir l'image en déploiement Dev
-# update_chart_frontend:
-#   stage: promote_frontend
-#   extends:
-#     - .install_yq_v4
-#     - .push_tag_deploy_dev
-#   variables:
-#     IMAGENAME: frontend
-#     CHART_PATH: $CHARTS_DIR/frontend
-#     VALUES_FILE: values-dev.yaml
-#   needs:
-#     - job: frontend
-#       optional: true
-
-
-# fallback_trigger_frontend:
-#   stage: promote_frontend
-#   extends: .api_trigger_pipeline
-#   needs:
-#     - job: update_chart_frontend
-#       artifacts: true
-#   rules:
-#     - if: '$TAG_PUSHED != "success"'
-#   variables:
-#     IMAGENAME: frontend
-#     REF: dev
-
-
 # ----------------------------------------------
-# Backend job - Trigger Build, Run, Push child
+# Trigger Build, Run, Push child
 # ----------------------------------------------
-backend:
+
+frontend_build:
   stage: build_push
+  extends: .job_rules
+  trigger:
+    include: ".gitlab/ci/templates/build-template.yml"
+    strategy: depend
+  variables:
+    # vérifie la valeur des variables et échoue si absente. Laisser vide ou bien "disabled" pour annuler le check.
+    REQUIRED_VARS: "IMAGENAME TAG HOSTPORT CONTAINERPORT URL_PATH"
+    IMAGENAME: frontend
+    HOSTPORT: 6080
+    CONTAINERPORT: 80
+    URL_PATH: "/"
+
+
+backend_build:
+  stage: build_push
+  extends: .job_rules
   trigger:
     include: ".gitlab/ci/templates/build-template.yml"    # .gitlab/ci/templates/build-template.yml
     strategy: depend
@@ -103,53 +79,20 @@ backend:
     CONTAINERPORT: 8000
     URL_PATH: "/api/v1/utils/health-check/"
 
-  rules:
-    - changes:
-        - $IMAGENAME/**   # ne se déclenche que si les fichiers du dossiers changent
-    
-    # fallback de déclenchement manuel en mode Dev
-    - if: '$MANUAL_MODE =~ /^(1|true|yes)$/'
-      when: manual
-    
-    # sinon, ne jamais déclencher
-    - when: never
-
-
-# # Promouvoir l'image en déploiement Dev
-# update_chart_backend:
-#   stage: promote_backend
-#   extends:
-#     - .install_yq_v4
-#     - .push_tag_deploy_dev
-#   variables:
-#     IMAGENAME: backend
-#     CHART_PATH: $CHARTS_DIR/backend
-#     VALUES_FILE: values-dev.yaml
-#   needs:
-#     - job: backend
-#       optional: true
-
-
-# fallback_trigger_backend:
-#   stage: promote_backend
-#   extends: .api_trigger_pipeline
-#   needs:
-#     - job: update_chart_backend
-#       artifacts: true
-#   variables:
-#     IMAGENAME: backend
-#     REF: dev
-
 
 # ----------------------------------------------
 # Build & Push Jobs results aggregation
 # - Détecter les jobs build_push qui ont réussi
 # - Aggréger les résultats au format image:tag
 # ----------------------------------------------
+
 frontend_detected:
   stage: aggregation
+  extends: .job_rules
+  variables:
+    IMAGENAME: frontend
   needs:
-    - job: frontend
+    - job: frontend_build
   script:
     - echo "frontend" > frontend.image
   artifacts:
@@ -159,8 +102,11 @@ frontend_detected:
 
 backend_detected:
   stage: aggregation
+  extends: .job_rules
+  variables:
+    IMAGENAME: backend
   needs:
-    - job: backend
+    - job: backend_build
   script:
     - echo "backend" > backend.image
   artifacts:
@@ -170,13 +116,22 @@ backend_detected:
 
 aggregate_images:
   stage: aggregation
+  rules:
+  - if: '$CI_PIPELINE_SOURCE =~ /^(push|merge_request_event)$/'
+  - if: '$MANUAL_MODE =~ /^(1|true|yes)$/'
+    when: manual
+  - when: never
   needs:
-    - frontend_detected
-    - backend_detected
+    - job: frontend_detected
+      optional: true
+    - job: backend_detected
+      optional: true
   script:
     - |
-      UPDATED_IMAGES=$(cat *.image | paste -sd "," -)
-      echo "UPDATED_IMAGES=$UPDATED_IMAGES" >> deploy.env
+      if compgen -G "*.image" > /dev/null; then
+        UPDATED_IMAGES=$(cat *.image | paste -sd "," -)
+        echo "UPDATED_IMAGES=$UPDATED_IMAGES" >> deploy.env
+      fi
     
     - echo "$UPDATED_IMAGES"
     - cat deploy.env
@@ -192,11 +147,13 @@ aggregate_images:
 # ----------------------------------------------
 trigger_deploy:
   stage: update_deploy
+  rules:
+    - if: '$UPDATED_IMAGES != ""'
   needs:
     - aggregate_images
   trigger:
     # déclencher le pipeline deploy sur le même nom de branche que App
-    project: group/projet_fastapi_deploy
+    project: $DEPLOY_PROJECT_GROUP/projet_fastapi_deploy
     branch: $CI_COMMIT_REF_NAME
     strategy: depend
   variables:
