@@ -1,15 +1,15 @@
 # Modèle de pipeline Docker
 # Organise les 3 étapes : build, run et push
 
-##### Upstream variables ##### 
-# Les variables suivantes doivent être définies ici OU dans l'appelant
+# -------------------------------------------------------------------------------------------
+# Upstream variables, devant être définies dans le job appelant
 #
 #   IMAGENAME:      nom de l'image Docker (et du dossier contenant le code source)
 #   TAG:            tag de l'image Docker (par exemple, $CI_COMMIT_SHORT_SHA ou "latest")
 #   HOSTPORT:       port exposé sur l'hôte pour accéder au service via Docker
 #   CONTAINERPORT:  port exposé dans le container Docker
 #   URL_PATH:       URL path pour vérifier que le service est bien démarré (ex: "api/v1/health")
-#
+# -------------------------------------------------------------------------------------------
 
 
 include:
@@ -17,7 +17,7 @@ include:
 
 
 stages:
-  - pre_checks  # importé
+  - pre_checks
   - build
   - run
   - push
@@ -27,6 +27,7 @@ stages:
 # Stage 'pre_checks' importé du template
 # ----------------------------------------------
 upstream_var_checks:
+  stage: pre_checks
   extends: .var_checks_template
   variables:
     REQUIRED_VARS: "IMAGENAME TAG HOSTPORT CONTAINERPORT URL_PATH"

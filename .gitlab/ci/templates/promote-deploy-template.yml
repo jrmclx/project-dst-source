@@ -1,33 +1,33 @@
-# Modèle de pipeline permettant d'envoyer le TAG de l'image construite vers le dépôt de Déploiement dans le même projet
-# Clone le dépot de déploiement, écrit le Tag de le fichiers values.yaml, commit et push pour publier le tag et déclehn cer le pipeline Deploy 
+# Modèles de Jobs permettant d'envoyer le TAG de l'image construite vers le pipeline de Déploiement.
 
-##### Upstream variables ##### 
-# Les variables suivantes doivent être définies dans l'appelant
+# -------------------------------------------------------------------------------------------
+# PUSH du tag dans le Helm Chart du micro-service
+#  - clone le dépot de déploiement
+#  - écrit le Tag dans le fichiers values.yaml du Chart
+#  - commit + push pour déclencher le pipeline Deploy
 #
-#   IMAGENAME:      nom de l'image Docker
-#   TAG:            tag de l'image Docker
-#   DEPLOY_PROJECT: nom du projet de déploiement, dans le même groupe GitLab.
-#   CHART_PATH:     chemin du repertoire qui contient le Chart du micro-service
+# Prérequis: 
+#  - le projet de déploiement doit appartenir au même groupe GitLab que le projet du pipline
+#  - un Access Token avec les permissions suffisantes a été défini dans le pipeline
+#  - YQ est installé sur le runner
+#  - les variables suivantes doivent être définies dans les jobs qui importent le template
 #
-
-# -----------------------------------------------------------------------------------------------------------------------------------------------
-# Publier le tag dans values.yaml du repo Deploy
-#
-# Choix du Token (rappel)
-# ├─ Project Access Token :   git clone https://${GROUP_TOKEN}@...                  non disponible sur GitLab Free plan
-# ├─ Personal Access Token :  git clone https://oauth2:${PERSO_TOKEN}@...           agit au nom de l'utilisateur
-# └─ GitLab Job Token :       git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@... ne permet pas de faire un push sur le repo d'un autre projet
-# -----------------------------------------------------------------------------------------------------------------------------------------------
+#   IMAGENAME:    nom de l'image Docker
+#   CHART_PATH:   chemin du repertoire qui contient le Chart du micro-service
+#   VALUES_FILE:  nom du fichier de valeurs du Chart où mettre à jour le tag
+# -------------------------------------------------------------------------------------------
 .push_tag_deploy_dev:
   variables:
-    VALUES_FILE: values-dev.yaml
-    TOKEN: $DEPLOY_TOKEN
-    USERNAME: oauth2
+    IMAGENAME: "override me"
+    CHART_PATH: "override me"
+    VALUES_FILE: "override me"
     REPO: $DEPLOY_PROJECT
+    TOKEN: $DEPLOY_PROJECT_TOKEN
+    USERNAME: oauth2
   before_script:
     - |
       if [ "$USERNAME" = "gitlab-ci-token" ]; then
-        echo "INFO: gitlab-ci-token can't push to a different project, skipping tag push"
+        echo "INFO: CI Job token can't push to a different project, skipping tag push"
         SKIP_PUSH="true"
       fi
 
@@ -87,22 +87,32 @@
       reports:
         dotenv: result.env
 
-# -----------------------------------------------------------------------------------------
+
+# -------------------------------------------------------------------------------------------
 # Trigger pipeline via API
-#  - Nécessaire en l'absence de Token permettant le push sur le repo Deploy
-#  - Transmets les variables nécessaires au déclenchement du pipeline
-# -----------------------------------------------------------------------------------------
+#  - Déclenche le pipeline Deploy par call API
+#  - Transmets les variables nécessaires au déclenchement sélectif du pipeline
+#
+# Prérequis: 
+#  - un Pipeline trigger Token doit exister sur le projet cible et passé en variable
+#  - les variables suivantes doivent être définies dans les jobs qui importent le template
+#
+#   IMAGENAME:    nom de l'image Docker
+#   REF:          branche du repo Deploy sur laquelle va être exécuté le pipeline
+# -------------------------------------------------------------------------------------------
 .api_trigger_pipeline:
   variables:
-    UPDATED_IMAGENAME: "must_exist"
+    PROJECT: $DEPLOY_PROJECT
+    TOKEN: $TRIGGER_TOKEN
+    IMAGENAME: "override me"
     UPDATED_TAG: $TAG
-    PROJECT: $DEPLOY_PROJECT    
-    REF: "deploy_remote_branch"
+    REF: "remote_branch"
+  rules:
+    - if: '$TAG_PUSHED != "success"'
   before_script:
     - echo "FALLBACK ':' tag Push to Deploy repo was skipped or failed, triggering pipeline via API..."
   script:
     - |
-      set -x
       PROJECT_PATH=${CI_PROJECT_NAMESPACE}/${PROJECT}
       ENCODED_PATH=$(printf '%s' "$PROJECT_PATH" | sed 's|/|%2F|g')
       PROJECT_ID=$ENCODED_PATH
@@ -110,18 +120,18 @@
     - |
       echo "Showing variables for debug purpose..."
       echo "TAG_PUSHED = $TAG_PUSHED"
-      echo "UPDATED_IMAGENAME = $UPDATED_IMAGENAME"
+      echo "IMAGENAME = $IMAGENAME"
       echo "UPDATED_TAG = $UPDATED_TAG"
       echo "REF = $REF"
       echo "PROJECT = $PROJECT"
       echo "PROJECT_ID = $PROJECT_ID"
 
     - >
-      RESPONSE="$(curl -v -X POST
+      RESPONSE="$(curl -X POST
       --fail --show-error
-      --form "token=$TRIGGER_TOKEN"
+      --form "token=$TOKEN"
       --form "ref=$REF"
-      --form "variables[UPDATED_IMAGENAME]=$UPDATED_IMAGENAME"
+      --form "variables[UPDATED_IMAGENAME]=$IMAGENAME"
       --form "variables[UPDATED_TAG]=$UPDATED_TAG"
       --url "${CI_API_V4_URL}/projects/$PROJECT_ID/trigger/pipeline")"
 
@@ -133,7 +143,7 @@
       WEB_URL="$(printf '%s' "$RESPONSE" | jq -r '.web_url')"
       USERNAME="$(printf '%s' "$RESPONSE" | jq -r '.user.username')"
 
-      printf "\nPipeline declenche avec succes:\n"
+      printf "\nPipeline successfully triggered:\n"
       printf -- "-------------------------------\n"
       printf "  Pipeline   : %s\n" "$PIPELINE_ID"
       printf "  ├─ Status  : %s\n" "$STATUS"

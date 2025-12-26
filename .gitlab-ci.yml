@@ -1,14 +1,26 @@
-# Pipeline principal - Orchestrateur des pipelines enfants (propre à chaque image)
+# Pipeline principal - Orchestrateur des pipelines enfants (propres à chaque image)
+
 
 include:
-  - local: '.gitlab/ci/templates/update-chart-tag-template.yml'
+  - local: '.gitlab/ci/templates/promote-deploy-template.yml'
 
 variables:
   TAG: $CI_COMMIT_SHORT_SHA
+  
+  # Chemin vers le repertoire qui contient les Charts Helm
   CHARTS_DIR: Helm
+  
+  # Nom du projet de Déploiement, situé dans le même groupe GitLab
   DEPLOY_PROJECT: projet_fastapi_deploy
-  DEPLOY_TOKEN: "" # REPO_TOKEN
-  TRIGGER_TOKEN: $DEPLOY_TRIGGER_TOKEN
+  
+  # Access Token pour push sur le repo du projet Deploy
+  DEPLOY_PROJECT_TOKEN: "" # GROUP_REPO_TOKEN
+  
+  # Trigger Token du projet Deploy, employé en fallback
+  TRIGGER_TOKEN: $TRIGGER_TOKEN_DEPLOY
+  
+  # Permettre le déclenchement manuel des jobs (utile en test)
+  MANUAL_MODE: true
 
 
 stages:
@@ -35,12 +47,15 @@ frontend:
     - changes:
         - $IMAGENAME/**   # ne se déclenche que si les fichiers du dossiers changent
     
-    - when: manual    # déclencer manuellement pour tester le pipeline
+    # fallback de déclenchement manuel en mode Dev
+    - if: '$MANUAL_MODE =~ /^(1|true|yes)$/'
+      when: manual
     
-    # - when: never         # sinon, ne jamais déclencher
+    # sinon, ne jamais déclencher
+    - when: never
 
 
-# Publier le tag dans values-dev.yaml du Chart
+# Promouvoir l'image en déploiement Dev
 update_chart_frontend:
   stage: promote
   extends:
@@ -64,7 +79,7 @@ fallback_trigger_frontend:
   rules:
     - if: '$TAG_PUSHED != "success"'
   variables:
-    UPDATED_IMAGENAME: frontend
+    IMAGENAME: frontend
     REF: dev
 
 
@@ -87,12 +102,15 @@ backend:
     - changes:
         - $IMAGENAME/**   # ne se déclenche que si les fichiers du dossiers changent
     
-    - when: manual    # déclencer manuellement pour tester le pipeline
+    # fallback de déclenchement manuel en mode Dev
+    - if: '$MANUAL_MODE =~ /^(1|true|yes)$/'
+      when: manual
     
-    # - when: never         # sinon, ne jamais déclencher
+    # sinon, ne jamais déclencher
+    - when: never
 
 
-# Publier le tag dans values-dev.yaml du Chart
+# Promouvoir l'image en déploiement Dev
 update_chart_backend:
   stage: promote
   extends:
@@ -113,8 +131,6 @@ fallback_trigger_backend:
   needs:
     - job: update_chart_backend
       artifacts: true
-  rules:
-    - if: '$TAG_PUSHED != "success"'
   variables:
-    UPDATED_IMAGENAME: frontend
+    IMAGENAME: frontend
     REF: dev
