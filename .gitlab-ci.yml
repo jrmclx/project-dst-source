@@ -25,12 +25,12 @@ variables:
 
 stages:
   - build_push
-  - promote_frontend
-  - promote_backend
+  - aggregation
+  - update_deploy
 
 
 # ----------------------------------------------
-# Trigger Job Frontend - Build, Run, Push
+# Frontend job - Trigger Build, Run, Push child
 # ----------------------------------------------
 frontend:
   stage: build_push
@@ -58,36 +58,36 @@ frontend:
     - when: never
 
 
-# Promouvoir l'image en déploiement Dev
-update_chart_frontend:
-  stage: promote_frontend
-  extends:
-    - .install_yq_v4
-    - .push_tag_deploy_dev
-  variables:
-    IMAGENAME: frontend
-    CHART_PATH: $CHARTS_DIR/frontend
-    VALUES_FILE: values-dev.yaml
-  needs:
-    - job: frontend
-      optional: true
+# # Promouvoir l'image en déploiement Dev
+# update_chart_frontend:
+#   stage: promote_frontend
+#   extends:
+#     - .install_yq_v4
+#     - .push_tag_deploy_dev
+#   variables:
+#     IMAGENAME: frontend
+#     CHART_PATH: $CHARTS_DIR/frontend
+#     VALUES_FILE: values-dev.yaml
+#   needs:
+#     - job: frontend
+#       optional: true
 
 
-fallback_trigger_frontend:
-  stage: promote_frontend
-  extends: .api_trigger_pipeline
-  needs:
-    - job: update_chart_frontend
-      artifacts: true
-  rules:
-    - if: '$TAG_PUSHED != "success"'
-  variables:
-    IMAGENAME: frontend
-    REF: dev
+# fallback_trigger_frontend:
+#   stage: promote_frontend
+#   extends: .api_trigger_pipeline
+#   needs:
+#     - job: update_chart_frontend
+#       artifacts: true
+#   rules:
+#     - if: '$TAG_PUSHED != "success"'
+#   variables:
+#     IMAGENAME: frontend
+#     REF: dev
 
 
 # ----------------------------------------------
-# Trigger Job Backend - Build, Run, Push
+# Backend job - Trigger Build, Run, Push child
 # ----------------------------------------------
 backend:
   stage: build_push
@@ -115,27 +115,90 @@ backend:
     - when: never
 
 
-# Promouvoir l'image en déploiement Dev
-update_chart_backend:
-  stage: promote_backend
-  extends:
-    - .install_yq_v4
-    - .push_tag_deploy_dev
-  variables:
-    IMAGENAME: backend
-    CHART_PATH: $CHARTS_DIR/backend
-    VALUES_FILE: values-dev.yaml
+# # Promouvoir l'image en déploiement Dev
+# update_chart_backend:
+#   stage: promote_backend
+#   extends:
+#     - .install_yq_v4
+#     - .push_tag_deploy_dev
+#   variables:
+#     IMAGENAME: backend
+#     CHART_PATH: $CHARTS_DIR/backend
+#     VALUES_FILE: values-dev.yaml
+#   needs:
+#     - job: backend
+#       optional: true
+
+
+# fallback_trigger_backend:
+#   stage: promote_backend
+#   extends: .api_trigger_pipeline
+#   needs:
+#     - job: update_chart_backend
+#       artifacts: true
+#   variables:
+#     IMAGENAME: backend
+#     REF: dev
+
+
+# ----------------------------------------------
+# Build & Push Jobs results aggregation
+# - Détecter les jobs build_push qui ont réussi
+# - Aggréger les résultats au format image:tag
+# ----------------------------------------------
+frontend_detected:
+  stage: aggregation
+  needs:
+    - job: frontend
+  script:
+    - echo "frontend" > frontend.image
+  artifacts:
+    when: on_success
+    paths:
+      - frontend.image
+
+backend_detected:
+  stage: aggregation
   needs:
     - job: backend
-      optional: true
+  script:
+    - echo "backend" > backend.image
+  artifacts:
+    when: on_success
+    paths:
+      - backend.image
 
-
-fallback_trigger_backend:
-  stage: promote_backend
-  extends: .api_trigger_pipeline
+aggregate_images:
+  stage: aggregation
   needs:
-    - job: update_chart_backend
-      artifacts: true
+    - frontend_detected
+    - backend_detected
+  script:
+    - |
+      UPDATED_IMAGES=$(cat *.image | paste -sd "," -)
+      echo "UPDATED_IMAGES=$UPDATED_IMAGES" >> deploy.env
+    
+    - echo "$UPDATED_IMAGES"
+    - cat deploy.env
+
+  artifacts:
+    reports:
+      dotenv: deploy.env
+
+
+# ----------------------------------------------
+# Trigger Deploy Project
+# - Transmettre le résultat aggrégé au pipeline Deploy
+# ----------------------------------------------
+trigger_deploy:
+  stage: update_deploy
+  needs:
+    - aggregate_images
+  trigger:
+    # déclencher le pipeline deploy sur le même nom de branche que App
+    project: group/projet_fastapi_deploy
+    ref: $CI_COMMIT_REF_NAME
+    strategy: depend
   variables:
-    IMAGENAME: backend
-    REF: dev
+    UPDATED_IMAGES: $UPDATED_IMAGES
+    UPDATED_TAG: $TAG
