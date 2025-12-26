@@ -153,7 +153,8 @@ trigger_deploy:
     - aggregate_images
   trigger:
     # déclencher le pipeline deploy sur le même nom de branche que App
-    project: $DEPLOY_PROJECT_GROUP/projet_fastapi_deploy
+    # project doit être hardcodé, expansion de variable non supporté par ce champ
+    project: jrm-grp/dst-project/projet_fastapi_deploy
     branch: $CI_COMMIT_REF_NAME
     strategy: depend
   variables:
