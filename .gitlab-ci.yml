@@ -24,25 +24,28 @@ variables:
 
 
 stages:
-  - triggers
-  - promote
+  - build_push
+  - promote_frontend
+  - promote_backend
 
 
 # ----------------------------------------------
 # Trigger Job Frontend - Build, Run, Push
 # ----------------------------------------------
 frontend:
-  stage: triggers
+  stage: build_push
   trigger:
     include: ".gitlab/ci/templates/build-template.yml"
     strategy: depend
   variables:
     # vérifie la valeur des variables et échoue si absente. Laisser vide ou bien "disabled" pour annuler le check.
     REQUIRED_VARS: "IMAGENAME TAG HOSTPORT CONTAINERPORT URL_PATH"
+    
     IMAGENAME: frontend
     HOSTPORT: 6080
     CONTAINERPORT: 80
     URL_PATH: "/"
+
   rules:
     - changes:
         - $IMAGENAME/**   # ne se déclenche que si les fichiers du dossiers changent
@@ -57,7 +60,7 @@ frontend:
 
 # Promouvoir l'image en déploiement Dev
 update_chart_frontend:
-  stage: promote
+  stage: promote_frontend
   extends:
     - .install_yq_v4
     - .push_tag_deploy_dev
@@ -71,7 +74,7 @@ update_chart_frontend:
 
 
 fallback_trigger_frontend:
-  stage: promote
+  stage: promote_frontend
   extends: .api_trigger_pipeline
   needs:
     - job: update_chart_frontend
@@ -87,17 +90,19 @@ fallback_trigger_frontend:
 # Trigger Job Backend - Build, Run, Push
 # ----------------------------------------------
 backend:
-  stage: triggers
+  stage: build_push
   trigger:
     include: ".gitlab/ci/templates/build-template.yml"    # .gitlab/ci/templates/build-template.yml
     strategy: depend
   variables:
     # vérifie la valeur des variables et échoue si absente. Laisser vide ou bien "disabled" pour annuler le check.
     REQUIRED_VARS: "IMAGENAME TAG HOSTPORT CONTAINERPORT URL_PATH"
+    
     IMAGENAME: backend
     HOSTPORT: 7800
     CONTAINERPORT: 8000
     URL_PATH: "/api/v1/utils/health-check/"
+
   rules:
     - changes:
         - $IMAGENAME/**   # ne se déclenche que si les fichiers du dossiers changent
@@ -112,7 +117,7 @@ backend:
 
 # Promouvoir l'image en déploiement Dev
 update_chart_backend:
-  stage: promote
+  stage: promote_backend
   extends:
     - .install_yq_v4
     - .push_tag_deploy_dev
@@ -126,11 +131,11 @@ update_chart_backend:
 
 
 fallback_trigger_backend:
-  stage: promote
+  stage: promote_backend
   extends: .api_trigger_pipeline
   needs:
     - job: update_chart_backend
       artifacts: true
   variables:
-    IMAGENAME: frontend
+    IMAGENAME: backend
     REF: dev
