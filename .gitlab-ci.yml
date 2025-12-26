@@ -197,7 +197,7 @@ trigger_deploy:
   trigger:
     # déclencher le pipeline deploy sur le même nom de branche que App
     project: group/projet_fastapi_deploy
-    ref: $CI_COMMIT_REF_NAME
+    branch: $CI_COMMIT_REF_NAME
     strategy: depend
   variables:
     UPDATED_IMAGES: $UPDATED_IMAGES
