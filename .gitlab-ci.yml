@@ -135,9 +135,6 @@ aggregate_images:
 
       echo "UPDATED_TAG=$TAG" >> deploy.env
 
-      echo "UPDATED_IMAGES = $UPDATED_IMAGES"
-      echo "UPDATED_TAG = $UPDATED_TAG"
-
       echo "Checking dotenv artifact..."
       cat deploy.env
 
@@ -169,5 +166,5 @@ trigger_deploy:
     UPDATED_IMAGES: $UPDATED_IMAGES
     # Variable héritée
     UPDATED_TAG: $UPDATED_TAG
-    TEST_TAG: $TAG
-    TEST_COMMIT_SHA: $CI_COMMIT_SHORT_SHA
+    APP_TAG: $TAG
+    APP_COMMIT_SHA: $CI_COMMIT_SHORT_SHA
