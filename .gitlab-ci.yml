@@ -93,6 +93,7 @@ frontend_detected:
     paths:
       - frontend.image
 
+
 # backend_detected:
 #   stage: aggregation
 #   extends: .job_rules
@@ -107,12 +108,13 @@ frontend_detected:
 #     paths:
 #       - backend.image
 
+
 aggregate_images:
   stage: aggregation
   rules:
   - if: '$CI_PIPELINE_SOURCE =~ /^(push|merge_request_event)$/'
-  - if: '$MANUAL_MODE =~ /^(1|true|yes)$/'
-    when: manual
+  # - if: '$MANUAL_MODE =~ /^(1|true|yes)$/'
+  #   when: manual
   - when: never
   needs:
     - job: frontend_detected
@@ -125,6 +127,11 @@ aggregate_images:
         UPDATED_IMAGES=$(cat *.image | paste -sd "," -)
         echo "UPDATED_IMAGES=$UPDATED_IMAGES" >> deploy.env
       fi
+
+      # if [ -z "$UPDATED_IMAGES" ]; then
+      #   echo "Error: $UPDATED_IMAGES is empty. It is expected to contain at least one image name."
+      #   exit 1
+      # fi
 
       echo "UPDATED_TAG=$TAG" >> deploy.env
 
@@ -143,7 +150,7 @@ aggregate_images:
 trigger_deploy:
   stage: update_deploy
   rules:
-    - if: '$UPDATED_IMAGES =~ /.+/'
+    - if: '$UPDATED_IMAGES !=""'
   needs:
     - aggregate_images
   trigger:
