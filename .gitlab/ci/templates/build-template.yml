@@ -11,7 +11,6 @@
 #   URL_PATH:       URL path pour vérifier que le service est bien démarré (ex: "api/v1/health")
 # -------------------------------------------------------------------------------------------
 
-
 include:
   - local: '.gitlab/ci/templates/var-precheck-template.yml'
 
@@ -51,7 +50,6 @@ build_image:
         docker tag "$CI_REGISTRY_IMAGE/$IMAGENAME:$TAG" "$CI_REGISTRY_IMAGE/$IMAGENAME:$CI_COMMIT_TAG"
       fi
 
-# TAG="${TAG:-tag-not-found}"   # fallback - si TAG est vide alors affecter une valeur de fallback à TAG
 
 # ----------------------------------------------
 # Exécuter le container et vérifier qu'il répond

@@ -1,21 +1,9 @@
 # Pipeline principal - Orchestrateur des pipelines enfants (propres à chaque image)
 
-
-include:
-  - local: '.gitlab/ci/templates/promote-deploy-template.yml'
-
 variables:
   TAG: $CI_COMMIT_SHORT_SHA
-  
-  # Chemin vers le repertoire qui contient les Charts Helm
   CHARTS_DIR: Helm
-  
-  # Projet de Déploiement
   DEPLOY_PROJECT: projet_fastapi_deploy
-  # DEPLOY_PROJECT_GROUP: $CI_PROJECT_NAMESPACE
-  # DEPLOY_ACCESS_TOKEN: "" # GROUP_REPO_TOKEN
-  # DEPLOY_TRIGGER_TOKEN: $TRIGGER_TOKEN_DEPLOY
-  
   # Permettre le déclenchement manuel des jobs (utile en test)
   MANUAL_MODE: true
 
@@ -57,6 +45,7 @@ frontend_build:
     strategy: depend
   variables:
     # vérifie la valeur des variables et échoue si absente. Laisser vide ou bien "disabled" pour annuler le check.
+    ENABLE_PRECHECK: false
     REQUIRED_VARS: "IMAGENAME TAG HOSTPORT CONTAINERPORT URL_PATH"
     IMAGENAME: frontend
     HOSTPORT: 6080
@@ -72,8 +61,8 @@ frontend_build:
 #     strategy: depend
 #   variables:
 #     # vérifie la valeur des variables et échoue si absente. Laisser vide ou bien "disabled" pour annuler le check.
-#     REQUIRED_VARS: "IMAGENAME TAG HOSTPORT CONTAINERPORT URL_PATH"
-    
+#     ENABLE_PRECHECK: false
+#     REQUIRED_VARS: "IMAGENAME TAG HOSTPORT CONTAINERPORT URL_PATH"    
 #     IMAGENAME: backend
 #     HOSTPORT: 7800
 #     CONTAINERPORT: 8000
@@ -158,13 +147,10 @@ trigger_deploy:
     project: $CI_PROJECT_NAMESPACE/projet_fastapi_deploy
     branch: $CI_COMMIT_REF_NAME
     strategy: depend
-  # inherit:
-  #   variables:
-  #     - TAG
+  inherit:
+    variables: false
   variables:
-    # Variable récupérée dans l'artifact dotenv via Needs: aggregate_images
+    # Variables récupérées dans l'artifact dotenv via Needs aggregate_images
     UPDATED_IMAGES: $UPDATED_IMAGES
-    # Variable héritée
     UPDATED_TAG: $UPDATED_TAG
-    APP_TAG: $TAG
-    APP_COMMIT_SHA: $CI_COMMIT_SHORT_SHA
+
