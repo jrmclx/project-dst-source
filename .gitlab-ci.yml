@@ -19,15 +19,17 @@ stages:
 # ----------------------------------------------
 
 # Template de Rules de présence des jobs du pipeline
+.manual_rules:
+  rules:
+    # Déclenchement manuel en mode Dev
+    - if: '$MANUAL_MODE =~ /^(1|true|yes)$/'
+      when: manual
+
 .job_rules:
   rules:
     # déclencher si les fichiers du dossiers changent (matche aussi sur trigger, sans git diff)
     - changes:
         - $IMAGENAME/**   
-    
-    # fallback de déclenchement manuel en mode Dev
-    - if: '$MANUAL_MODE =~ /^(1|true|yes)$/'
-      when: manual
     
     # sinon, ne jamais déclencher
     - when: never
@@ -39,7 +41,9 @@ stages:
 
 frontend_build:
   stage: build_push
-  extends: .job_rules
+  extends:
+    - .manual_rules
+    - .job_rules
   trigger:
     include: ".gitlab/ci/templates/build-template.yml"
     strategy: depend
@@ -139,7 +143,7 @@ aggregate_images:
 trigger_deploy:
   stage: update_deploy
   rules:
-    - if: '$UPDATED_IMAGES != ""'
+    - if: '$UPDATED_IMAGES =~ /.+/'
   needs:
     - aggregate_images
   trigger:
