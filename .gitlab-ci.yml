@@ -159,7 +159,10 @@ trigger_deploy:
     branch: $CI_COMMIT_REF_NAME
     strategy: depend
   inherit:
-    variables: false
+    variables:
+      - TAG
   variables:
+    # Variable récupérée dans l'artifact dotenv via Needs: aggregate_images
     UPDATED_IMAGES: $UPDATED_IMAGES
+    # Variable héritée
     UPDATED_TAG: $TAG
