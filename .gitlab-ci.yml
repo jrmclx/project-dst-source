@@ -12,7 +12,7 @@ variables:
   
   # Projet de Déploiement
   DEPLOY_PROJECT: projet_fastapi_deploy
-  DEPLOY_PROJECT_GROUP: $CI_PROJECT_NAMESPACE
+  # DEPLOY_PROJECT_GROUP: $CI_PROJECT_NAMESPACE
   # DEPLOY_ACCESS_TOKEN: "" # GROUP_REPO_TOKEN
   # DEPLOY_TRIGGER_TOKEN: $TRIGGER_TOKEN_DEPLOY
   
@@ -132,8 +132,13 @@ aggregate_images:
         UPDATED_IMAGES=$(cat *.image | paste -sd "," -)
         echo "UPDATED_IMAGES=$UPDATED_IMAGES" >> deploy.env
       fi
-    
-      echo "$UPDATED_IMAGES"
+
+      echo "UPDATED_TAG=$TAG" >> deploy.env
+
+      echo "UPDATED_IMAGES = $UPDATED_IMAGES"
+      echo "UPDATED_TAG = $UPDATED_TAG"
+
+      echo "Checking dotenv artifact..."
       cat deploy.env
 
   artifacts:
@@ -153,16 +158,16 @@ trigger_deploy:
     - aggregate_images
   trigger:
     # déclencher le pipeline deploy sur le même nom de branche que App
-    # project doit être hardcodé, expansion de variable non supporté par ce champ
-    # project: jrm-grp/dst-project/projet_fastapi_deploy
     project: $CI_PROJECT_NAMESPACE/projet_fastapi_deploy
     branch: $CI_COMMIT_REF_NAME
     strategy: depend
-  inherit:
-    variables:
-      - TAG
+  # inherit:
+  #   variables:
+  #     - TAG
   variables:
     # Variable récupérée dans l'artifact dotenv via Needs: aggregate_images
     UPDATED_IMAGES: $UPDATED_IMAGES
     # Variable héritée
-    UPDATED_TAG: $TAG
+    UPDATED_TAG: $UPDATED_TAG
+    TEST_TAG: $TAG
+    TEST_COMMIT_SHA: $CI_COMMIT_SHORT_SHA
