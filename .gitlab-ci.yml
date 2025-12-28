@@ -112,9 +112,9 @@ aggregate_images:
   stage: aggregation
   rules:
   - if: '$CI_PIPELINE_SOURCE =~ /^(push|merge_request_event)$/'
-    changes:
-      - frontend/**
-      - backend/**
+    # changes:
+    #   - frontend/**
+    #   - backend/**
   - if: '$MANUAL_MODE =~ /^(1|true|yes)$/'
     when: manual
   - when: never
