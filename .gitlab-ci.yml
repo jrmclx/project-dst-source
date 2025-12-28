@@ -118,6 +118,7 @@ backend_updated:
 aggregate_images:
   stage: aggregation
   rules:
+    - if: '$CI_PIPELINE_SOURCE =~ /^(push|merge_request_event)$/'
     - changes:
       - frontend/**
       - backend/**
