@@ -42,6 +42,10 @@ stages:
 
 debug_changes:
   stage: build_push
+  rules:
+    - changes:
+      - frontend/**
+      - backend/**
   script:
     - echo "CI_PIPELINE_SOURCE=$CI_PIPELINE_SOURCE"
     - git diff --name-only $CI_COMMIT_BEFORE_SHA $CI_COMMIT_SHA
@@ -119,9 +123,6 @@ aggregate_images:
   stage: aggregation
   rules:
     - if: '$CI_PIPELINE_SOURCE =~ /^(push|merge_request_event)$/'
-    - changes:
-      - frontend/**
-      - backend/**
     - if: '$MANUAL_MODE =~ /^(1|true|yes)$/'
       when: manual
     - when: never
