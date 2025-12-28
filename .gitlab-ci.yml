@@ -5,7 +5,7 @@ variables:
   CHARTS_DIR: Helm
   DEPLOY_PROJECT: projet_fastapi_deploy
   # Permettre le déclenchement manuel des jobs (utile en test)
-  MANUAL_MODE: true
+  MANUAL_MODE: false
 
 
 stages:
