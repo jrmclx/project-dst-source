@@ -5,7 +5,7 @@ variables:
   CHARTS_DIR: Helm
   DEPLOY_PROJECT: projet_fastapi_deploy
   # Permettre le déclenchement manuel des jobs (utile en test)
-  MANUAL_MODE: false
+  MANUAL_MODE: true
 
 
 stages:
@@ -56,20 +56,20 @@ frontend_build:
     URL_PATH: "/"
 
 
-# backend_build:
-#   stage: build_push
-#   extends: .job_rules
-#   trigger:
-#     include: ".gitlab/ci/templates/build-template.yml"    # .gitlab/ci/templates/build-template.yml
-#     strategy: depend
-#   variables:
-#     # vérifie la valeur des variables et échoue si absente. Vide ou "disabled" pour annuler le check.
-#     ENABLE_PRECHECK: false
-#     REQUIRED_VARS: "IMAGENAME TAG HOSTPORT CONTAINERPORT URL_PATH"    
-#     IMAGENAME: backend
-#     HOSTPORT: 7800
-#     CONTAINERPORT: 8000
-#     URL_PATH: "/api/v1/utils/health-check/"
+backend_build:
+  stage: build_push
+  extends: .job_rules
+  trigger:
+    include: ".gitlab/ci/templates/build-template.yml"    # .gitlab/ci/templates/build-template.yml
+    strategy: depend
+  variables:
+    # vérifie la valeur des variables et échoue si absente. Vide ou "disabled" pour annuler le check.
+    ENABLE_PRECHECK: false
+    REQUIRED_VARS: "IMAGENAME TAG HOSTPORT CONTAINERPORT URL_PATH"    
+    IMAGENAME: backend
+    HOSTPORT: 7800
+    CONTAINERPORT: 8000
+    URL_PATH: "/api/v1/utils/health-check/"
 
 
 # ----------------------------------------------
@@ -93,28 +93,28 @@ frontend_updated:
       - frontend.image
 
 
-# backend_updated:
-#   stage: aggregation
-#   extends: .job_rules
-#   variables:
-#     IMAGENAME: backend
-#   needs:
-#     - job: backend_build
-#   script:
-#     - echo "backend" > backend.image
-#   artifacts:
-#     when: on_success
-#     paths:
-#       - backend.image
+backend_updated:
+  stage: aggregation
+  extends: .job_rules
+  variables:
+    IMAGENAME: backend
+  needs:
+    - job: backend_build
+  script:
+    - echo "backend" > backend.image
+  artifacts:
+    when: on_success
+    paths:
+      - backend.image
 
 
 aggregate_images:
   stage: aggregation
   rules:
   - if: '$CI_PIPELINE_SOURCE =~ /^(push|merge_request_event)$/'
-    # changes:
-    #   - frontend/**
-    #   - backend/**
+    changes:
+      - frontend/**
+      - backend/**
   - if: '$MANUAL_MODE =~ /^(1|true|yes)$/'
     when: manual
   - when: never
@@ -131,7 +131,7 @@ aggregate_images:
       fi
 
       if [ -z "$UPDATED_IMAGES" ]; then
-        echo "Error: $UPDATED_IMAGES is empty. It is expected to contain at least one image name."
+        echo "Error: Images list is empty. It must contain at least one image name."
         exit 1
       fi
 
