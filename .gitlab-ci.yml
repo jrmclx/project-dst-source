@@ -5,7 +5,7 @@ variables:
   CHARTS_DIR: Helm
   DEPLOY_PROJECT: projet_fastapi_deploy
   # Permettre le déclenchement manuel des jobs (utile en test)
-  MANUAL_MODE: true
+  MANUAL_MODE: false
 
 
 stages:
@@ -26,8 +26,8 @@ stages:
 .job_rules:
   rules:
     # déclencher si les fichiers du dossiers changent (matche aussi sur trigger, sans git diff)
-    - if: '$CI_PIPELINE_SOURCE =~ /^(push|merge_request_event)$/'
-      changes:
+    # - if: '$CI_PIPELINE_SOURCE =~ /^(push|merge_request_event)$/'
+    - changes:
         - $IMAGENAME/**
     # fallback de déclenchement manuel si activé
     - if: '$MANUAL_MODE =~ /^(1|true|yes)$/'
@@ -118,10 +118,9 @@ backend_updated:
 aggregate_images:
   stage: aggregation
   rules:
-    - if: '$CI_PIPELINE_SOURCE =~ /^(push|merge_request_event)$/'
-      changes:
-        - frontend/**
-        - backend/**
+    - changes:
+      - frontend/**
+      - backend/**
     - if: '$MANUAL_MODE =~ /^(1|true|yes)$/'
       when: manual
     - when: never
