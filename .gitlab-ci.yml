@@ -5,7 +5,7 @@ variables:
   CHARTS_DIR: Helm
   DEPLOY_PROJECT: projet_fastapi_deploy
   # Permettre le déclenchement manuel des jobs (utile en test)
-  MANUAL_MODE: false
+  MANUAL_MODE: true
 
 
 stages:
@@ -39,6 +39,12 @@ stages:
 # ----------------------------------------------
 # Trigger Build, Run, Push child
 # ----------------------------------------------
+
+debug_changes:
+  script:
+    - echo "CI_PIPELINE_SOURCE=$CI_PIPELINE_SOURCE"
+    - git diff --name-only $CI_COMMIT_BEFORE_SHA $CI_COMMIT_SHA
+
 
 frontend_build:
   stage: build_push
