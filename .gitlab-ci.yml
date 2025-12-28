@@ -5,7 +5,7 @@ variables:
   CHARTS_DIR: Helm
   DEPLOY_PROJECT: projet_fastapi_deploy
   # Permettre le déclenchement manuel des jobs (utile en test)
-  MANUAL_MODE: false
+  MANUAL_MODE: true
 
 
 stages:
@@ -112,9 +112,9 @@ aggregate_images:
   stage: aggregation
   rules:
   - if: '$CI_PIPELINE_SOURCE =~ /^(push|merge_request_event)$/'
-    # changes:
-    #   - frontend/**
-    #   - backend/**
+    changes:
+      - frontend/**
+      - backend/**
   - if: '$MANUAL_MODE =~ /^(1|true|yes)$/'
     when: manual
   - when: never
@@ -130,10 +130,10 @@ aggregate_images:
         echo "UPDATED_IMAGES=$UPDATED_IMAGES" >> deploy.env
       fi
 
-      # if [ -z "$UPDATED_IMAGES" ]; then
-      #   echo "Error: $UPDATED_IMAGES is empty. It is expected to contain at least one image name."
-      #   exit 1
-      # fi
+      if [ -z "$UPDATED_IMAGES" ]; then
+        echo "Error: $UPDATED_IMAGES is empty. It is expected to contain at least one image name."
+        exit 1
+      fi
 
       echo "UPDATED_TAG=$TAG" >> deploy.env
 
@@ -172,4 +172,3 @@ update_deploy:
     # Variables récupérées dans l'artifact dotenv via Needs aggregate_images
     UPDATED_IMAGES: $UPDATED_IMAGES
     UPDATED_TAG: $UPDATED_TAG
-
