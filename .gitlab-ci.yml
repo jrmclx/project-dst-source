@@ -40,12 +40,47 @@ stages:
 # Trigger Build, Run, Push child
 # ----------------------------------------------
 
-debug_changes:
+debug_changes_no_rules:
+  stage: build_push
+  script:
+    - echo "CI_PIPELINE_SOURCE=$CI_PIPELINE_SOURCE"
+    - git diff --name-only $CI_COMMIT_BEFORE_SHA $CI_COMMIT_SHA
+
+debug_changes_directories:
   stage: build_push
   rules:
     - changes:
-      - frontend/
-      - backend/
+      - "frontend/"
+      - "backend/"
+  script:
+    - echo "CI_PIPELINE_SOURCE=$CI_PIPELINE_SOURCE"
+    - git diff --name-only $CI_COMMIT_BEFORE_SHA $CI_COMMIT_SHA
+
+debug_changes_dir_any:
+  stage: build_push
+  rules:
+    - changes:
+        - "frontend/**"
+        - "backend/**"
+  script:
+    - echo "CI_PIPELINE_SOURCE=$CI_PIPELINE_SOURCE"
+    - git diff --name-only $CI_COMMIT_BEFORE_SHA $CI_COMMIT_SHA
+
+debug_changes_subdir:
+  stage: build_push
+  rules:
+    - changes:
+        - "frontend/**/*"
+        - "backend/**/*"
+  script:
+    - echo "CI_PIPELINE_SOURCE=$CI_PIPELINE_SOURCE"
+    - git diff --name-only $CI_COMMIT_BEFORE_SHA $CI_COMMIT_SHA
+
+debug_changes_backend:
+  stage: build_push
+  rules:
+    - changes:
+        - "backend/**"
   script:
     - echo "CI_PIPELINE_SOURCE=$CI_PIPELINE_SOURCE"
     - git diff --name-only $CI_COMMIT_BEFORE_SHA $CI_COMMIT_SHA
