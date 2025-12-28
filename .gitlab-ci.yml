@@ -21,14 +21,16 @@ stages:
 # Template de Rules de présence des jobs du pipeline
 .manual_rules:
   rules:
-    
+    - if: '$MANUAL_MODE =~ /^(1|true|yes)$/'
+      when: manual
 
 .job_rules:
   rules:
     # déclencher si les fichiers du dossiers changent (matche aussi sur trigger, sans git diff)
     # - if: '$CI_PIPELINE_SOURCE =~ /^(push|merge_request_event)$/'
     - changes:
-        - $IMAGENAME/**
+        - $IMAGENAME/*
+        - $IMAGENAME/**/*
     # fallback de déclenchement manuel si activé
     - if: '$MANUAL_MODE =~ /^(1|true|yes)$/'
       when: manual
@@ -40,50 +42,50 @@ stages:
 # Trigger Build, Run, Push child
 # ----------------------------------------------
 
-debug_changes_no_rules:
-  stage: build_push
-  script:
-    - echo "CI_PIPELINE_SOURCE=$CI_PIPELINE_SOURCE"
-    - git diff --name-only $CI_COMMIT_BEFORE_SHA $CI_COMMIT_SHA
+# debug_changes_no_rules:
+#   stage: build_push
+#   script:
+#     - echo "CI_PIPELINE_SOURCE=$CI_PIPELINE_SOURCE"
+#     - git diff --name-only $CI_COMMIT_BEFORE_SHA $CI_COMMIT_SHA
 
-debug_changes_directories:
-  stage: build_push
-  rules:
-    - changes:
-      - "frontend/"
-      - "backend/"
-  script:
-    - echo "CI_PIPELINE_SOURCE=$CI_PIPELINE_SOURCE"
-    - git diff --name-only $CI_COMMIT_BEFORE_SHA $CI_COMMIT_SHA
+# debug_changes_directories:
+#   stage: build_push
+#   rules:
+#     - changes:
+#       - "frontend/"
+#       - "backend/"
+#   script:
+#     - echo "CI_PIPELINE_SOURCE=$CI_PIPELINE_SOURCE"
+#     - git diff --name-only $CI_COMMIT_BEFORE_SHA $CI_COMMIT_SHA
 
-debug_changes_dir_any:
-  stage: build_push
-  rules:
-    - changes:
-        - "frontend/**"
-        - "backend/**"
-  script:
-    - echo "CI_PIPELINE_SOURCE=$CI_PIPELINE_SOURCE"
-    - git diff --name-only $CI_COMMIT_BEFORE_SHA $CI_COMMIT_SHA
+# debug_changes_dir_any:
+#   stage: build_push
+#   rules:
+#     - changes:
+#         - "frontend/**"
+#         - "backend/**"
+#   script:
+#     - echo "CI_PIPELINE_SOURCE=$CI_PIPELINE_SOURCE"
+#     - git diff --name-only $CI_COMMIT_BEFORE_SHA $CI_COMMIT_SHA
 
-debug_changes_subdir:
-  stage: build_push
-  rules:
-    - changes:
-        - frontend/**/*
-        - backend/**/*
-  script:
-    - echo "CI_PIPELINE_SOURCE=$CI_PIPELINE_SOURCE"
-    - git diff --name-only $CI_COMMIT_BEFORE_SHA $CI_COMMIT_SHA
+# debug_changes_subdir:
+#   stage: build_push
+#   rules:
+#     - changes:
+#         - frontend/**/*
+#         - backend/**/*
+#   script:
+#     - echo "CI_PIPELINE_SOURCE=$CI_PIPELINE_SOURCE"
+#     - git diff --name-only $CI_COMMIT_BEFORE_SHA $CI_COMMIT_SHA
 
-debug_changes_backend:
-  stage: build_push
-  rules:
-    - changes:
-        - backend/**/*
-  script:
-    - echo "CI_PIPELINE_SOURCE=$CI_PIPELINE_SOURCE"
-    - git diff --name-only $CI_COMMIT_BEFORE_SHA $CI_COMMIT_SHA
+# debug_changes_backend:
+#   stage: build_push
+#   rules:
+#     - changes:
+#         - backend/**/*
+#   script:
+#     - echo "CI_PIPELINE_SOURCE=$CI_PIPELINE_SOURCE"
+#     - git diff --name-only $CI_COMMIT_BEFORE_SHA $CI_COMMIT_SHA
 
 
 frontend_build:
@@ -158,6 +160,11 @@ aggregate_images:
   stage: aggregation
   rules:
     - if: '$CI_PIPELINE_SOURCE =~ /^(push|merge_request_event)$/'
+      changes:
+        - frontend/*
+        - frontend/**/*
+        - backend/*
+        - backend/**/*
     - if: '$MANUAL_MODE =~ /^(1|true|yes)$/'
       when: manual
     - when: never
@@ -196,6 +203,11 @@ update_deploy:
   stage: trigger_deploy
   rules:
     - if: '$CI_PIPELINE_SOURCE =~ /^(push|merge_request_event)$/'
+      changes:
+        - frontend/*
+        - frontend/**/*
+        - backend/*
+        - backend/**/*
     - if: '$MANUAL_MODE =~ /^(1|true|yes)$/'
       when: manual
     - when: never
