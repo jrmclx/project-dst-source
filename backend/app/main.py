@@ -5,6 +5,8 @@ from starlette.middleware.cors import CORSMiddleware
 
 from app.api.main import api_router
 from app.core.config import settings
+
+# added to fix ReDoc
 from app.docs.redoc import router as redoc_router
 
 
@@ -33,3 +35,6 @@ if settings.all_cors_origins:
     )
 
 app.include_router(api_router, prefix=settings.API_V1_STR)
+
+# added to fix ReDoc
+app.include_router(redoc_router)
