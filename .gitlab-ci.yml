@@ -44,8 +44,8 @@ debug_changes:
   stage: build_push
   rules:
     - changes:
-      - frontend/**
-      - backend/**
+      - frontend/
+      - backend/
   script:
     - echo "CI_PIPELINE_SOURCE=$CI_PIPELINE_SOURCE"
     - git diff --name-only $CI_COMMIT_BEFORE_SHA $CI_COMMIT_SHA
