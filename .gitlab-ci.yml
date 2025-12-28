@@ -5,13 +5,13 @@ variables:
   CHARTS_DIR: Helm
   DEPLOY_PROJECT: projet_fastapi_deploy
   # Permettre le déclenchement manuel des jobs (utile en test)
-  MANUAL_MODE: true
+  MANUAL_MODE: false
 
 
 stages:
   - build_push
   - aggregation
-  - update_deploy
+  - trigger_deploy
 
 
 # ----------------------------------------------
@@ -21,16 +21,17 @@ stages:
 # Template de Rules de présence des jobs du pipeline
 .manual_rules:
   rules:
-    # Déclenchement manuel en mode Dev
-    - if: '$MANUAL_MODE =~ /^(1|true|yes)$/'
-      when: manual
+    
 
 .job_rules:
   rules:
     # déclencher si les fichiers du dossiers changent (matche aussi sur trigger, sans git diff)
-    - changes:
-        - $IMAGENAME/**   
-    
+    - if: '$CI_PIPELINE_SOURCE =~ /^(push|merge_request_event)$/'
+      changes:
+        - $IMAGENAME/**
+    # fallback de déclenchement manuel si activé
+    - if: '$MANUAL_MODE =~ /^(1|true|yes)$/'
+      when: manual
     # sinon, ne jamais déclencher
     - when: never
 
@@ -41,14 +42,12 @@ stages:
 
 frontend_build:
   stage: build_push
-  extends:
-    - .manual_rules
-    - .job_rules
+  extends: .job_rules
   trigger:
     include: ".gitlab/ci/templates/build-template.yml"
     strategy: depend
   variables:
-    # vérifie la valeur des variables et échoue si absente. Laisser vide ou bien "disabled" pour annuler le check.
+    # vérifie la valeur des variables et échoue si absentes. Vide ou "disabled" pour annuler le check.
     ENABLE_PRECHECK: false
     REQUIRED_VARS: "IMAGENAME TAG HOSTPORT CONTAINERPORT URL_PATH"
     IMAGENAME: frontend
@@ -64,7 +63,7 @@ frontend_build:
 #     include: ".gitlab/ci/templates/build-template.yml"    # .gitlab/ci/templates/build-template.yml
 #     strategy: depend
 #   variables:
-#     # vérifie la valeur des variables et échoue si absente. Laisser vide ou bien "disabled" pour annuler le check.
+#     # vérifie la valeur des variables et échoue si absente. Vide ou "disabled" pour annuler le check.
 #     ENABLE_PRECHECK: false
 #     REQUIRED_VARS: "IMAGENAME TAG HOSTPORT CONTAINERPORT URL_PATH"    
 #     IMAGENAME: backend
@@ -79,7 +78,7 @@ frontend_build:
 # - Aggréger les résultats au format image:tag
 # ----------------------------------------------
 
-frontend_detected:
+frontend_updated:
   stage: aggregation
   extends: .job_rules
   variables:
@@ -94,7 +93,7 @@ frontend_detected:
       - frontend.image
 
 
-# backend_detected:
+# backend_updated:
 #   stage: aggregation
 #   extends: .job_rules
 #   variables:
@@ -113,13 +112,16 @@ aggregate_images:
   stage: aggregation
   rules:
   - if: '$CI_PIPELINE_SOURCE =~ /^(push|merge_request_event)$/'
+    # changes:
+    #   - frontend/**
+    #   - backend/**
   - if: '$MANUAL_MODE =~ /^(1|true|yes)$/'
     when: manual
   - when: never
   needs:
-    - job: frontend_detected
+    - job: frontend_updated
       optional: true
-    - job: backend_detected
+    - job: backend_updated
       optional: true
   script:
     - |
@@ -147,10 +149,16 @@ aggregate_images:
 # Trigger Deploy Project
 # - Transmettre le résultat aggrégé au pipeline Deploy
 # ----------------------------------------------
-trigger_deploy:
-  stage: update_deploy
+update_deploy:
+  stage: trigger_deploy
   rules:
-    - if: '$UPDATED_IMAGES'
+    - if: '$CI_PIPELINE_SOURCE =~ /^(push|merge_request_event)$/'
+      # changes:
+      #   - frontend/**
+      #   - backend/**
+    - if: '$MANUAL_MODE =~ /^(1|true|yes)$/'
+      when: manual
+    - when: never
   needs:
     - aggregate_images
   trigger:
