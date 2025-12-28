@@ -5,6 +5,7 @@ from starlette.middleware.cors import CORSMiddleware
 
 from app.api.main import api_router
 from app.core.config import settings
+from app.docs.redoc import router as redoc_router
 
 
 def custom_generate_unique_id(route: APIRoute) -> str:
@@ -18,9 +19,7 @@ app = FastAPI(
     title=settings.PROJECT_NAME,
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
     generate_unique_id_function=custom_generate_unique_id,
-    redoc_js_url="https://cdn.jsdelivr.net/npm/redoc@2.5.2/bundles/redoc.standalone.js",
-    redoc_url="/redoc",
-    docs_url="/docs",
+    redoc_url=None,
 )
 
 # Set all CORS enabled origins
