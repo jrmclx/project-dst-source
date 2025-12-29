@@ -6,9 +6,7 @@ from starlette.middleware.cors import CORSMiddleware
 from app.api.main import api_router
 from app.core.config import settings
 
-# added to fix ReDoc
-from app.docs.redoc import router as redoc_router
-
+from fastapi.openapi.docs import get_redoc_html
 
 def custom_generate_unique_id(route: APIRoute) -> str:
     return f"{route.tags[0]}-{route.name}"
@@ -21,8 +19,17 @@ app = FastAPI(
     title=settings.PROJECT_NAME,
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
     generate_unique_id_function=custom_generate_unique_id,
-    redoc_url=None,
+    redoc_url=None
 )
+
+
+@app.get("/redoc", include_in_schema=False, tags=["docs"])
+async def redoc_html():
+    return get_redoc_html(
+        openapi_url=app.openapi_url,
+        title=app.title + " - ReDoc",
+        redoc_js_url="https://cdn.jsdelivr.net/npm/redoc@2/bundles/redoc.standalone.js",
+    )
 
 # Set all CORS enabled origins
 if settings.all_cors_origins:
@@ -35,6 +42,3 @@ if settings.all_cors_origins:
     )
 
 app.include_router(api_router, prefix=settings.API_V1_STR)
-
-# added to fix ReDoc
-app.include_router(redoc_router)
