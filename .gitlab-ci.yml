@@ -154,7 +154,7 @@ aggregate_images:
 update_deploy:
   stage: trigger_deploy
   rules:
-    - if: '$CI_PIPELINE_SOURCE =~ /^(push|merge_request_event)$/'
+    - if: '$CI_PIPELINE_SOURCE =~ /^(push|merge_request_event)$/ && $AUTO_DEPLOY == "true"'
       changes:
         - frontend/**/*
         - backend/**/*
@@ -169,7 +169,8 @@ update_deploy:
     branch: $CI_COMMIT_REF_NAME
     strategy: depend
   inherit:
-    variables: false
+    variables:
+      - AUTO_DEPLOY
   variables:
     # Variables récupérées dans l'artifact dotenv via Needs aggregate_images
     UPDATED_IMAGES: $UPDATED_IMAGES
