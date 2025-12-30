@@ -1,0 +1,63 @@
+# Job template
+
+# -------------------------------------------------------------------------------------------
+# Trigger pipeline via API
+#  - Déclenche le pipeline du repo Deploy par call API
+#  - Transmets les variables nécessaires au déclenchement sélectif du pipeline
+#
+# Prérequis: 
+#  - un Pipeline trigger Token doit exister sur le projet cible et passé en variable
+#  - les variables suivantes doivent être définies dans les jobs qui importent le template
+#
+#   IMAGENAME:    nom de l'image Docker
+#   REF:          branche du repo Deploy sur laquelle va être exécuté le pipeline
+# -------------------------------------------------------------------------------------------
+.api_trigger:
+  variables:
+    PROJECT: $DEPLOY_PROJECT
+    TOKEN: $TRIGGER_TOKEN
+    IMAGENAME: "override me"
+    UPDATED_TAG: $TAG
+    REF: "remote_branch"
+  before_script:
+    - echo "FALLBACK ':' tag Push to Deploy repo was skipped or failed, triggering pipeline via API..."
+  script:
+    - |
+      PROJECT_PATH=${CI_PROJECT_NAMESPACE}/${PROJECT}
+      ENCODED_PATH=$(printf '%s' "$PROJECT_PATH" | sed 's|/|%2F|g')
+      PROJECT_ID=$ENCODED_PATH
+
+    - |
+      echo "Showing variables for debug purpose..."
+      echo "TAG_PUSHED = $TAG_PUSHED"
+      echo "IMAGENAME = $IMAGENAME"
+      echo "UPDATED_TAG = $UPDATED_TAG"
+      echo "REF = $REF"
+      echo "PROJECT = $PROJECT"
+      echo "PROJECT_ID = $PROJECT_ID"
+
+    - >
+      RESPONSE="$(curl -X POST
+      --fail --show-error
+      --form "token=$TOKEN"
+      --form "ref=$REF"
+      --form "variables[UPDATED_IMAGENAME]=$IMAGENAME"
+      --form "variables[UPDATED_TAG]=$UPDATED_TAG"
+      --url "${CI_API_V4_URL}/projects/$PROJECT_ID/trigger/pipeline")"
+
+    - |
+      PIPELINE_ID="$(printf '%s' "$RESPONSE" | jq -r '.id')"
+      REF_VALUE="$(printf '%s' "$RESPONSE" | jq -r '.ref')"
+      STATUS="$(printf '%s' "$RESPONSE" | jq -r '.status')"
+      SOURCE="$(printf '%s' "$RESPONSE" | jq -r '.source')"
+      WEB_URL="$(printf '%s' "$RESPONSE" | jq -r '.web_url')"
+      USERNAME="$(printf '%s' "$RESPONSE" | jq -r '.user.username')"
+
+      printf "\nPipeline successfully triggered:\n"
+      printf -- "-------------------------------\n"
+      printf "  Pipeline   : %s\n" "$PIPELINE_ID"
+      printf "  ├─ Status  : %s\n" "$STATUS"
+      printf "  ├─ Source  : %s\n" "$SOURCE"
+      printf "  ├─ Web URL : %s\n" "$WEB_URL"
+      printf "  ├─ User    : %s\n" "$USERNAME"
+      printf "  └─ Ref     : %s\n" "$REF_VALUE"

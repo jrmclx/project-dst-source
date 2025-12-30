@@ -1,141 +1,177 @@
 # Pipeline principal - Orchestrateur des pipelines enfants (propres à chaque image)
 
-
-include:
-  - local: '.gitlab/ci/templates/promote-deploy-template.yml'
-
 variables:
   TAG: $CI_COMMIT_SHORT_SHA
-  
-  # Chemin vers le repertoire qui contient les Charts Helm
   CHARTS_DIR: Helm
-  
-  # Nom du projet de Déploiement, situé dans le même groupe GitLab
   DEPLOY_PROJECT: projet_fastapi_deploy
-  
-  # Access Token pour push sur le repo du projet Deploy
-  DEPLOY_PROJECT_TOKEN: "" # GROUP_REPO_TOKEN
-  
-  # Trigger Token du projet Deploy, employé en fallback
-  TRIGGER_TOKEN: $TRIGGER_TOKEN_DEPLOY
-  
   # Permettre le déclenchement manuel des jobs (utile en test)
-  MANUAL_MODE: true
-
+  MANUAL_MODE: false
+  AUTO_DEPLOY: true
 
 stages:
   - build_push
-  - promote_frontend
-  - promote_backend
+  - aggregation
+  - trigger_deploy
 
 
 # ----------------------------------------------
-# Trigger Job Frontend - Build, Run, Push
+# Job Rules
 # ----------------------------------------------
-frontend:
+
+# Template de Rules de présence des jobs du pipeline
+.manual_rules:
+  rules:
+    - if: '$MANUAL_MODE =~ /^(1|true|yes)$/'
+      when: manual
+
+.job_rules:
+  rules:
+    # déclencher si les fichiers du dossiers changent (matche aussi sur trigger, sans git diff)
+    # - if: '$CI_PIPELINE_SOURCE =~ /^(push|merge_request_event)$/'
+    - changes:
+        - $IMAGENAME/*
+        - $IMAGENAME/**/*
+    # fallback de déclenchement manuel si activé
+    - if: '$MANUAL_MODE =~ /^(1|true|yes)$/'
+      when: manual
+    # sinon, ne jamais déclencher
+    - when: never
+
+
+# ----------------------------------------------
+# Trigger Build, Run, Push child
+# ----------------------------------------------
+
+frontend_build:
   stage: build_push
+  extends: .job_rules
   trigger:
     include: ".gitlab/ci/templates/build-template.yml"
     strategy: depend
   variables:
-    # vérifie la valeur des variables et échoue si absente. Laisser vide ou bien "disabled" pour annuler le check.
+    # vérifie la valeur des variables et échoue si absentes. Vide ou "disabled" pour annuler le check.
+    ENABLE_PRECHECK: false
     REQUIRED_VARS: "IMAGENAME TAG HOSTPORT CONTAINERPORT URL_PATH"
-    
     IMAGENAME: frontend
     HOSTPORT: 6080
     CONTAINERPORT: 80
     URL_PATH: "/"
 
-  rules:
-    - changes:
-        - $IMAGENAME/**   # ne se déclenche que si les fichiers du dossiers changent
-    
-    # fallback de déclenchement manuel en mode Dev
-    - if: '$MANUAL_MODE =~ /^(1|true|yes)$/'
-      when: manual
-    
-    # sinon, ne jamais déclencher
-    - when: never
 
-
-# Promouvoir l'image en déploiement Dev
-update_chart_frontend:
-  stage: promote_frontend
-  extends:
-    - .install_yq_v4
-    - .push_tag_deploy_dev
-  variables:
-    IMAGENAME: frontend
-    CHART_PATH: $CHARTS_DIR/frontend
-    VALUES_FILE: values-dev.yaml
-  needs:
-    - job: frontend
-      optional: true
-
-
-fallback_trigger_frontend:
-  stage: promote_frontend
-  extends: .api_trigger_pipeline
-  needs:
-    - job: update_chart_frontend
-      artifacts: true
-  rules:
-    - if: '$TAG_PUSHED != "success"'
-  variables:
-    IMAGENAME: frontend
-    REF: dev
-
-
-# ----------------------------------------------
-# Trigger Job Backend - Build, Run, Push
-# ----------------------------------------------
-backend:
+backend_build:
   stage: build_push
+  extends: .job_rules
   trigger:
     include: ".gitlab/ci/templates/build-template.yml"    # .gitlab/ci/templates/build-template.yml
     strategy: depend
   variables:
-    # vérifie la valeur des variables et échoue si absente. Laisser vide ou bien "disabled" pour annuler le check.
-    REQUIRED_VARS: "IMAGENAME TAG HOSTPORT CONTAINERPORT URL_PATH"
-    
+    # vérifie la valeur des variables et échoue si absente. Vide ou "disabled" pour annuler le check.
+    ENABLE_PRECHECK: false
+    REQUIRED_VARS: "IMAGENAME TAG HOSTPORT CONTAINERPORT URL_PATH"    
     IMAGENAME: backend
     HOSTPORT: 7800
     CONTAINERPORT: 8000
     URL_PATH: "/api/v1/utils/health-check/"
 
+
+# ----------------------------------------------
+# Build & Push Jobs results aggregation
+# - Détecter les jobs build_push qui ont réussi
+# - Aggréger les résultats au format image:tag
+# ----------------------------------------------
+
+frontend_updated:
+  stage: aggregation
+  extends: .job_rules
+  variables:
+    IMAGENAME: frontend
+  needs:
+    - job: frontend_build
+  script:
+    - echo "frontend" > frontend.image
+  artifacts:
+    when: on_success
+    paths:
+      - frontend.image
+
+
+backend_updated:
+  stage: aggregation
+  extends: .job_rules
+  variables:
+    IMAGENAME: backend
+  needs:
+    - job: backend_build
+  script:
+    - echo "backend" > backend.image
+  artifacts:
+    when: on_success
+    paths:
+      - backend.image
+
+
+aggregate_images:
+  stage: aggregation
   rules:
-    - changes:
-        - $IMAGENAME/**   # ne se déclenche que si les fichiers du dossiers changent
-    
-    # fallback de déclenchement manuel en mode Dev
+    - if: '$CI_PIPELINE_SOURCE =~ /^(push|merge_request_event)$/ && $AUTO_DEPLOY == "true"'
+      changes:
+        - frontend/**/*
+        - backend/**/*
     - if: '$MANUAL_MODE =~ /^(1|true|yes)$/'
       when: manual
-    
-    # sinon, ne jamais déclencher
     - when: never
-
-
-# Promouvoir l'image en déploiement Dev
-update_chart_backend:
-  stage: promote_backend
-  extends:
-    - .install_yq_v4
-    - .push_tag_deploy_dev
-  variables:
-    IMAGENAME: backend
-    CHART_PATH: $CHARTS_DIR/backend
-    VALUES_FILE: values-dev.yaml
   needs:
-    - job: backend
+    - job: frontend_updated
       optional: true
+    - job: backend_updated
+      optional: true
+  script:
+    - |
+      if compgen -G "*.image" > /dev/null; then
+        UPDATED_IMAGES=$(cat *.image | paste -sd "," -)
+        echo "UPDATED_IMAGES=$UPDATED_IMAGES" >> deploy.env
+      fi
+
+      if [ -z "$UPDATED_IMAGES" ]; then
+        echo "Error: Images list is empty. It must contain at least one image name."
+        exit 1
+      fi
+
+      echo "UPDATED_TAG=$TAG" >> deploy.env
+
+      echo "Checking dotenv artifact..."
+      cat deploy.env
+
+  artifacts:
+    reports:
+      dotenv: deploy.env
 
 
-fallback_trigger_backend:
-  stage: promote_backend
-  extends: .api_trigger_pipeline
+# ----------------------------------------------
+# Trigger Deploy Project
+# - Transmettre le résultat aggrégé au pipeline Deploy
+# ----------------------------------------------
+update_deploy:
+  stage: trigger_deploy
+  rules:
+    - if: '$CI_PIPELINE_SOURCE =~ /^(push|merge_request_event)$/ && $AUTO_DEPLOY == "true"'
+      changes:
+        - frontend/**/*
+        - backend/**/*
+    - if: '$MANUAL_MODE =~ /^(1|true|yes)$/'
+      when: manual
+    - when: never
   needs:
-    - job: update_chart_backend
-      artifacts: true
+    - aggregate_images
+  trigger:
+    # déclencher le pipeline deploy sur le même nom de branche que App
+    project: $CI_PROJECT_NAMESPACE/projet_fastapi_deploy
+    branch: $CI_COMMIT_REF_NAME
+    strategy: depend
+  inherit:
+    variables:
+      - AUTO_DEPLOY
   variables:
-    IMAGENAME: backend
-    REF: dev
+    # Variables récupérées dans l'artifact dotenv via Needs aggregate_images
+    UPDATED_IMAGES: $UPDATED_IMAGES
+    UPDATED_TAG: $UPDATED_TAG
