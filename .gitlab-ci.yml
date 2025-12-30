@@ -154,7 +154,7 @@ aggregate_images:
 update_deploy:
   stage: trigger_deploy
   rules:
-    - if: '$CI_PIPELINE_SOURCE =~ /^(push|merge_request_event)$/ && $AUTO_DEPLOY == "true"'
+    - if: '$CI_PIPELINE_SOURCE =~ /^(push|merge_request_event)$/'
       changes:
         - frontend/**/*
         - backend/**/*
