@@ -113,7 +113,7 @@ backend_updated:
 aggregate_images:
   stage: aggregation
   rules:
-    - if: '$CI_PIPELINE_SOURCE =~ /^(push|merge_request_event)$/'
+    - if: '$CI_PIPELINE_SOURCE =~ /^(push|merge_request_event)$/ && $AUTO_DEPLOY == "true"'
       changes:
         # - frontend/*
         - frontend/**/*
@@ -156,11 +156,11 @@ aggregate_images:
 update_deploy:
   stage: trigger_deploy
   rules:
-    - if: '$CI_PIPELINE_SOURCE =~ /^(push|merge_request_event)$/ && AUTO_DEPLOY == "true"'
+    - if: '$CI_PIPELINE_SOURCE =~ /^(push|merge_request_event)$/ && $AUTO_DEPLOY == "true"'
       changes:
-        - frontend/*
+        # - frontend/*
         - frontend/**/*
-        - backend/*
+        # - backend/*
         - backend/**/*
     - if: '$MANUAL_MODE =~ /^(1|true|yes)$/'
       when: manual
