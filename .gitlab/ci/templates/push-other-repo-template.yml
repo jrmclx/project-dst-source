@@ -75,7 +75,7 @@
         echo "Image tag changed in $VALUES_FILE, committing and pushing..."
         git add $VALUES_FILE
         git commit -m "Deploy ${IMAGENAME} ${TAG}"
-        git push origin "$WORKING_BRANCH"
+        git push -u origin "$WORKING_BRANCH"
       else
         echo "No change in $VALUES_FILE, nothing to deploy"
       fi

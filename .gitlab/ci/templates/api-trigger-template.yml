@@ -2,7 +2,7 @@
 
 # -------------------------------------------------------------------------------------------
 # Trigger pipeline via API
-#  - Déclenche le pipeline Deploy par call API
+#  - Déclenche le pipeline du repo Deploy par call API
 #  - Transmets les variables nécessaires au déclenchement sélectif du pipeline
 #
 # Prérequis: 
