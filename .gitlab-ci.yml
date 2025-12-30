@@ -6,7 +6,7 @@ variables:
   DEPLOY_PROJECT: projet_fastapi_deploy
   # Permettre le déclenchement manuel des jobs (utile en test)
   MANUAL_MODE: false
-
+  AUTO_DEPLOY: true
 
 stages:
   - build_push
@@ -156,7 +156,7 @@ aggregate_images:
 update_deploy:
   stage: trigger_deploy
   rules:
-    - if: '$CI_PIPELINE_SOURCE =~ /^(push|merge_request_event)$/'
+    - if: '$CI_PIPELINE_SOURCE =~ /^(push|merge_request_event)$/ && AUTO_DEPLOY == "true"'
       changes:
         - frontend/*
         - frontend/**/*
