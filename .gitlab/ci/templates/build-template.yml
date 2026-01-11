@@ -115,4 +115,4 @@ push_image:
 
 container_scanning:
   variables:
-    CS_IMAGE: $CI_REGISTRY_IMAGE/$IMAGENAME:$CI_COMMIT_TAG
+    CS_IMAGE: $CI_REGISTRY_IMAGE/$IMAGENAME:$TAG
