@@ -97,6 +97,8 @@ include:
   extends: .api_trigger
   rules:
     - if: '$TAG_PUSHED != "success"'
+  before_script:
+    - echo "FALLBACK ':' tag Push to Deploy repo was skipped or failed, triggering pipeline via API..."
 
 # -----------------------------------------------------------------------------------------
 # Installer YQ latest si besoin

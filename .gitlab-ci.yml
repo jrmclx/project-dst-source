@@ -4,8 +4,7 @@ variables:
   TAG: $CI_COMMIT_SHORT_SHA
   CHARTS_DIR: Helm
   DEPLOY_PROJECT: projet_fastapi_deploy
-  # Permettre le déclenchement manuel des jobs (utile en test)
-  MANUAL_MODE: false
+  MANUAL_MODE: false  # Permettre le déclenchement manuel des jobs (utile en test)
   AUTO_DEPLOY: true
 
 stages:
@@ -149,7 +148,7 @@ aggregate_images:
 
 # ----------------------------------------------
 # Trigger Deploy Project
-# - Transmettre le résultat aggrégé au pipeline Deploy
+# - Transmettre le résultat agrégé au pipeline Deploy
 # ----------------------------------------------
 update_deploy:
   stage: trigger_deploy
@@ -167,11 +166,11 @@ update_deploy:
     # déclencher le pipeline deploy sur le même nom de branche que App
     project: $CI_PROJECT_NAMESPACE/projet_fastapi_deploy
     branch: $CI_COMMIT_REF_NAME
-    strategy: depend
+    strategy: mirror
   inherit:
     variables:
       - AUTO_DEPLOY
   variables:
-    # Variables récupérées dans l'artifact dotenv via Needs aggregate_images
+    # Variables récupérées dans l'artifact dotenv via needs: aggregate_images
     UPDATED_IMAGES: $UPDATED_IMAGES
     UPDATED_TAG: $UPDATED_TAG

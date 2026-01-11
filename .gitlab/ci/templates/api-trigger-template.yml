@@ -9,18 +9,17 @@
 #  - un Pipeline trigger Token doit exister sur le projet cible et passé en variable
 #  - les variables suivantes doivent être définies dans les jobs qui importent le template
 #
-#   IMAGENAME:    nom de l'image Docker
-#   REF:          branche du repo Deploy sur laquelle va être exécuté le pipeline
+#   UPDATED_IMAGES:     liste des images Docker
+#   UPDATED_TAG:        tag commun aux images
+#   REF:                branche du repo Deploy sur laquelle va être exécuté le pipeline
 # -------------------------------------------------------------------------------------------
 .api_trigger:
   variables:
     PROJECT: $DEPLOY_PROJECT
-    TOKEN: $TRIGGER_TOKEN
-    IMAGENAME: "override me"
+    TOKEN: $TRIGGER_TOKEN_DEPLOY
+    UPDATED_IMAGES: "override me"
     UPDATED_TAG: $TAG
     REF: "remote_branch"
-  before_script:
-    - echo "FALLBACK ':' tag Push to Deploy repo was skipped or failed, triggering pipeline via API..."
   script:
     - |
       PROJECT_PATH=${CI_PROJECT_NAMESPACE}/${PROJECT}
@@ -30,7 +29,7 @@
     - |
       echo "Showing variables for debug purpose..."
       echo "TAG_PUSHED = $TAG_PUSHED"
-      echo "IMAGENAME = $IMAGENAME"
+      echo "UPDATED_IMAGES = $UPDATED_IMAGES"
       echo "UPDATED_TAG = $UPDATED_TAG"
       echo "REF = $REF"
       echo "PROJECT = $PROJECT"
@@ -41,7 +40,7 @@
       --fail --show-error
       --form "token=$TOKEN"
       --form "ref=$REF"
-      --form "variables[UPDATED_IMAGENAME]=$IMAGENAME"
+      --form "variables[UPDATED_IMAGES]=$UPDATED_IMAGES"
       --form "variables[UPDATED_TAG]=$UPDATED_TAG"
       --url "${CI_API_V4_URL}/projects/$PROJECT_ID/trigger/pipeline")"
 
