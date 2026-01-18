@@ -40,10 +40,10 @@
 
       for VAR in "${VARS_ARRAY[@]}"; do
         if [ -z "${!VAR}" ]; then
-          echo "Error: Environment variable '$VAR' is NOT set."
+          echo "Error: variable '$VAR' is NOT set."
           MISSING=1
         else
-          echo "$VAR = '${!VAR}'"
+          echo "├─ $VAR = '${!VAR}'"
         fi
       done
 

@@ -24,10 +24,15 @@ stages:
   - test
 
 
+# variables:
+#   DOCKER_TLS_CERTDIR: "/certs"
+#   DOCKER_TLS_VERIFY: 1
+#   DOCKER_CERT_PATH: "$DOCKER_TLS_CERTDIR/client"
+
+
 default:
   tags:
-    - shell-executor
-
+    - ${EXECUTION_MODE}-executor
 
 # ----------------------------------------------
 # Stage 'pre_checks' importé du template
@@ -41,91 +46,91 @@ upstream_var_checks:
 
 
 #----------------------------------------------
-# Construire l'image Docker et la taguer
+# Construire l'image Docker et la taguer (compatible Shell et Docker)
 #----------------------------------------------
-build_image:
+build_run_push:
   stage: build
+  image: docker:cli
+  services:
+    - docker:dind
+
+  before_script:
+    # s'identifier auprès du registre privé GitLab avant le Push
+    - echo "$CI_REGISTRY_PASSWORD" | docker login $CI_REGISTRY -u $CI_REGISTRY_USER --password-stdin
+    
+    # si docker-executor, ajouter curl à l'image DinD
+    - |
+      if [ "$EXECUTION_MODE" = "docker" ]; then
+        echo "Installing curl (Docker executor mode)"
+        apk add --no-cache curl
+      else
+        echo "Skipping curl installation (Shell executor mode)"
+      fi
+
   script:
+    # Build
     - |
       TAG="${TAG:-tag-not-found}" 
       echo "Building with tag: $TAG"
       
-      cd $IMAGENAME/
-      docker build -t "$CI_REGISTRY_IMAGE/$IMAGENAME:$TAG" .
+      IMAGE="$CI_REGISTRY_IMAGE/$IMAGENAME:$TAG"
+      
+      docker build -t "$IMAGE" ./$IMAGENAME
       
       if [ -n "$CI_COMMIT_TAG" ]; then
-        docker tag "$CI_REGISTRY_IMAGE/$IMAGENAME:$TAG" "$CI_REGISTRY_IMAGE/$IMAGENAME:latest"
-        docker tag "$CI_REGISTRY_IMAGE/$IMAGENAME:$TAG" "$CI_REGISTRY_IMAGE/$IMAGENAME:$CI_COMMIT_TAG"
+        docker tag "$IMAGE" "$CI_REGISTRY_IMAGE/$IMAGENAME:latest"
+        docker tag "$IMAGE" "$CI_REGISTRY_IMAGE/$IMAGENAME:$CI_COMMIT_TAG"
       fi
-
-
-# ----------------------------------------------
-# Exécuter le container et vérifier qu'il répond
-# ----------------------------------------------
-run_image:
-  stage: run
-  before_script:
-    # si jamais un run manuel a été oublié, alors nettoyer...
-    - docker stop $IMAGENAME || true
-    - docker rm $IMAGENAME || true
-  
-  script:
+    
+    # Run
     - |
-      TAG="${TAG:-tag-not-found}"
-      echo "Running with tag: $TAG"
-      
-      echo "Image: $IMAGENAME"
+      echo echo "Running container for validation..."
+      echo "Image: $IMAGE"
       echo "Hostport: $HOSTPORT"
       echo "Containerport: $CONTAINERPORT"
+
+      if [ "$EXECUTION_MODE" = "docker" ]; then        
+        URL="http://docker:${HOSTPORT}${URL_PATH}"
+
+      else
+        docker stop $IMAGENAME || true
+        docker rm $IMAGENAME || true
+
+        URL="http://localhost:${HOSTPORT}${URL_PATH}"
       
+      fi
+
       echo "Starting container..."
-      echo "docker run --env-file .env -d -p $HOSTPORT:$CONTAINERPORT --name $IMAGENAME $CI_REGISTRY_IMAGE/$IMAGENAME:$TAG"
-      docker run --env-file .env -d -p $HOSTPORT:$CONTAINERPORT --name $IMAGENAME "$CI_REGISTRY_IMAGE/$IMAGENAME:$TAG"
+      docker run --env-file .env -d -p $HOSTPORT:$CONTAINERPORT --name "$IMAGENAME" "$IMAGE" || exit 1
 
       echo "Checking container is responding..."
       SUCCESS=false
 
       for i in $(seq 1 30); do
-        if curl -sf -o /dev/null -w "├─ HTTP Code %{http_code}\n" \
-          "http://localhost:${HOSTPORT}${URL_PATH}"; then
+        if curl -sf -o /dev/null -w "├─ HTTP Code %{http_code}\n" "${URL}"; then
           SUCCESS=true
           break
         fi
-        sleep 5
+        sleep 3
       done
 
       if [ "$SUCCESS" != "true" ]; then
-        echo "└─ ERROR: service did not become ready after 30 attempts"
+        echo "└─ ERROR: service unreachable after 30 attempts"
         exit 1
       fi
   
       echo "└─ Container is healthy"
-  
-  after_script:
-    # nettoyer après le run
-    - docker stop $IMAGENAME || true
-    - docker rm $IMAGENAME || true
+      docker stop $IMAGENAME || true
+      docker rm $IMAGENAME || true
 
-
-# ----------------------------------------------
-# Pousser l'image Docker vers le registre
-# ----------------------------------------------
-push_image:
-  stage: push
-
-  before_script:
-    # s'identifier auprès du registre privé GitLab avant le Push
-    - echo "$CI_REGISTRY_PASSWORD" | docker login $CI_REGISTRY -u $CI_REGISTRY_USER --password-stdin
-
-  script:
+    # Push
     - |
-      TAG="${TAG:-tag-not-found}"
-      echo "Pushing tag: $TAG"
-      docker push "$CI_REGISTRY_IMAGE/$IMAGENAME:$TAG"
+      echo "Pushing $IMAGENAME to registry"
+      docker push "$IMAGE"
     
     # Push également le tag 'latest' si le tag Git du commit est défini
     - |
-      if [ ! -z "$CI_COMMIT_TAG" ]; then
+      if [ -n "$CI_COMMIT_TAG" ]; then
         echo "Release TAG detected: pushing tags '$CI_COMMIT_TAG' and 'latest'"
         docker push "$CI_REGISTRY_IMAGE/$IMAGENAME:latest"
         docker push "$CI_REGISTRY_IMAGE/$IMAGENAME:$CI_COMMIT_TAG"
