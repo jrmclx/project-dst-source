@@ -25,7 +25,7 @@ stages:
   - test
 
 
-# variables:
+# variables:      # Déplacé dans le Worflow pour appication conditionnelle.
 #   DOCKER_TLS_CERTDIR: "/certs"
 #   DOCKER_TLS_VERIFY: 1
 #   DOCKER_CERT_PATH: "$DOCKER_TLS_CERTDIR/client"

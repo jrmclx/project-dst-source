@@ -190,7 +190,7 @@ update_deploy:
   trigger:
     # déclencher le pipeline deploy sur le même nom de branche que App
     project: $CI_PROJECT_NAMESPACE/projet_fastapi_deploy
-    branch: $CI_COMMIT_REF_NAME
+    branch: main  # $CI_COMMIT_REF_NAME
     strategy: mirror
   inherit:
     variables:
