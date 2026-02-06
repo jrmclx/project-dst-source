@@ -34,7 +34,6 @@ default:
 # ----------------------------------------------
 upstream_var_checks:
   stage: pre_checks
-  image: ubuntu:24.04
   extends: .var_checks_template
   variables:
     REQUIRED_VARS: "IMAGENAME TAG HOSTPORT CONTAINERPORT URL_PATH"
@@ -130,12 +129,3 @@ push_image:
         docker push "$CI_REGISTRY_IMAGE/$IMAGENAME:latest"
         docker push "$CI_REGISTRY_IMAGE/$IMAGENAME:$CI_COMMIT_TAG"
       fi
-
-
-container_scanning:
-  rules:
-    - if: '$EXECUTION_MODE == "docker"'
-  tags:
-    - docker-executor
-  variables:
-    CS_IMAGE: $CI_REGISTRY_IMAGE/$IMAGENAME:$TAG

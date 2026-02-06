@@ -1,0 +1,107 @@
+# ----------------------------------------------
+# Build & Push Jobs results aggregation
+# - Détecter les jobs build_push qui ont réussi
+# - Aggréger les résultats au format image:tag
+# ----------------------------------------------
+
+frontend_updated:
+  stage: aggregation
+  image: ubuntu:24.04
+  extends: .job_rules
+  variables:
+    IMAGENAME: frontend
+  needs:
+    - job: frontend_build
+  script:
+    - echo "frontend" > frontend.image
+  artifacts:
+    when: on_success
+    paths:
+      - frontend.image
+
+
+backend_updated:
+  stage: aggregation
+  image: ubuntu:24.04
+  extends: .job_rules
+  variables:
+    IMAGENAME: backend
+  needs:
+    - job: backend_build
+  script:
+    - echo "backend" > backend.image
+  artifacts:
+    when: on_success
+    paths:
+      - backend.image
+
+
+aggregate_images:
+  stage: aggregation
+  image: ubuntu:24.04
+  rules:
+    - if: '$CI_PIPELINE_SOURCE =~ /^(push|merge_request_event)$/ && $AUTO_DEPLOY == "true"'
+      changes:
+        - frontend/**/*
+        - backend/**/*
+    - if: '$CI_PIPELINE_SOURCE =~ /^(trigger|pipeline|web)$/'
+    - if: '$MANUAL_MODE =~ /^(1|true|yes)$/'
+      when: manual
+    - when: never
+  needs:
+    - job: frontend_updated
+      optional: true
+    - job: backend_updated
+      optional: true
+  script:
+    - |
+      if compgen -G "*.image" > /dev/null; then
+        UPDATED_IMAGES=$(cat *.image | paste -sd "," -)
+        echo "UPDATED_IMAGES=$UPDATED_IMAGES" >> deploy.env
+      fi
+
+      if [ -z "$UPDATED_IMAGES" ]; then
+        echo "Error: Images list is empty. It must contain at least one image name."
+        exit 1
+      fi
+
+      echo "UPDATED_TAG=$TAG" >> deploy.env
+
+      echo "Checking dotenv artifact..."
+      cat deploy.env
+
+  artifacts:
+    reports:
+      dotenv: deploy.env
+
+
+# ----------------------------------------------
+# Trigger Deploy Project
+# - Transmettre le résultat agrégé au pipeline Deploy
+# ----------------------------------------------
+
+update_deploy:
+  stage: trigger_deploy
+  rules:
+    - if: '$CI_PIPELINE_SOURCE =~ /^(push|merge_request_event)$/ && $AUTO_DEPLOY == "true"'
+      changes:
+        - frontend/**/*
+        - backend/**/*
+    - if: '$CI_PIPELINE_SOURCE =~ /^(trigger|pipeline|web)$/'
+    - if: '$MANUAL_MODE =~ /^(1|true|yes)$/'
+      when: manual
+    - when: never
+  needs:
+    - aggregate_images
+  trigger:
+    # déclencher le pipeline deploy sur le même nom de branche que App
+    project: $CI_PROJECT_NAMESPACE/projet_fastapi_deploy
+    branch: main  # $CI_COMMIT_REF_NAME
+    strategy: mirror
+  inherit:
+    variables:
+      - AUTO_DEPLOY
+  variables:
+    # Variables récupérées dans l'artifact dotenv via needs: aggregate_images
+    UPDATED_IMAGES: $UPDATED_IMAGES
+    UPDATED_TAG: $UPDATED_TAG
