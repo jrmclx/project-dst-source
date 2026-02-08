@@ -14,7 +14,6 @@
 include:
   - local: '.gitlab/ci/templates/var-precheck-template.yml'
   - template: 'Jobs/Container-Scanning.gitlab-ci.yml'
-  - template: 'Jobs/SAST.gitlab-ci.yml'
 
 
 stages:
@@ -139,6 +138,9 @@ build_run_push:
       fi
 
 
+# ----------------------------------------------
+# Container Scanning
+# ----------------------------------------------
 container_scanning:
   rules:
     - if: '$EXECUTION_MODE == "docker"'

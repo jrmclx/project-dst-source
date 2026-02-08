@@ -13,7 +13,7 @@
 
 include:
   - local: '.gitlab/ci/templates/var-precheck-template.yml'
-  - template: 'Jobs/Container-Scanning.gitlab-ci.yml'
+  # - template: 'Jobs/Container-Scanning.gitlab-ci.yml'
 
 
 stages:

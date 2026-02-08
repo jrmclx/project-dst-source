@@ -1,4 +1,7 @@
 # Pipeline principal - Orchestrateur des pipelines enfants (propres à chaque image)
+include:
+  - template: 'Jobs/SAST.gitlab-ci.yml'
+
 
 variables:
   TAG: $CI_COMMIT_SHORT_SHA
@@ -9,6 +12,7 @@ variables:
   MANUAL_MODE: false  # Permettre le déclenchement manuel des jobs (utile en test)
   AUTO_DEPLOY: true
   EXECUTION_MODE: "docker"  # docker / shell
+  ENABLE_SAST: "true"
 
 
 # utlisation d'un Workflow pour ajuster les variables selon le type de Runner voulu
@@ -25,9 +29,8 @@ workflow:
 
 
 stages:
-  - build_push
-  - aggregation
-  - trigger_deploy
+  - test        # Scan du code source (SAST)
+  - build_push  # Build & Push child pipelines
 
 
 # Job Tags par défaut basé sur la variable $EXECUTION_MODE
@@ -36,6 +39,17 @@ stages:
 default:
   tags:
     - ${EXECUTION_MODE}-executor
+
+
+# ----------------------------------------------
+# SAST code Scanning
+# ----------------------------------------------
+
+semgrep-sast:
+  rules:
+    - if: '$EXECUTION_MODE == "docker" && $ENABLE_SAST == "true"'
+  tags:
+    - docker-executor
 
 
 # ----------------------------------------------
