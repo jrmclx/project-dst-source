@@ -1,5 +1,6 @@
-# Modèle de pipeline Docker
-# Organise les 3 étapes : build, run et push
+# Modèle de pipeline Shell Executor
+#                    -----
+#   Organise les 3 étapes : build, run et push
 
 # -------------------------------------------------------------------------------------------
 # Upstream variables, devant être définies dans le job appelant
@@ -13,7 +14,7 @@
 
 include:
   - local: '.gitlab/ci/templates/var-precheck-template.yml'
-  # - template: 'Jobs/Container-Scanning.gitlab-ci.yml'
+
 
 
 stages:
@@ -21,7 +22,6 @@ stages:
   - build
   - run
   - push
-  - test
 
 
 default:

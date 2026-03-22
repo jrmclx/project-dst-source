@@ -1,5 +1,8 @@
-# Modèle de pipeline Docker
-# Organise les 3 étapes : build, run et push
+# Modèle de pipeline Docker Executor
+#                    ------
+#   Organise les 3 étapes : build, run et push
+#
+#   Ce pipeline est également compatible Shell Executor, mais le job de test/scan (qui requiert Docker) sera ignoré
 
 # -------------------------------------------------------------------------------------------
 # Upstream variables, devant être définies dans le job appelant
@@ -18,22 +21,23 @@ include:
 
 stages:
   - pre_checks
-  - build
-  - run
-  - push
+  - build_push
   - test
 
 
-# variables déplacées dans le Worflow, pour appication conditionnelle.
-# variables:
-#   DOCKER_TLS_CERTDIR: "/certs"
-#   DOCKER_TLS_VERIFY: 1
-#   DOCKER_CERT_PATH: "$DOCKER_TLS_CERTDIR/client"
+variables:
+  DOCKER_TLS_CERTDIR: "/certs"
+  DOCKER_TLS_VERIFY: 1
+  DOCKER_CERT_PATH: "$DOCKER_TLS_CERTDIR/client"
 
 
+# Job Tags par défaut basé sur la variable $EXECUTION_MODE
+# Influence la sélection du Runner pour exécuter le job : Shell ou Docker
+# Les runners doivent être tagués correctement 'shell-executor' ou 'docker-executor'
 default:
   tags:
     - ${EXECUTION_MODE}-executor
+
 
 # ----------------------------------------------
 # Stage 'pre_checks' importé du template
@@ -50,7 +54,7 @@ upstream_var_checks:
 # Construire l'image Docker et la taguer (compatible Shell et Docker)
 #----------------------------------------------
 build_run_push:
-  stage: build
+  stage: build_push
   image: docker:cli
   services:
     - docker:dind
@@ -139,7 +143,7 @@ build_run_push:
 
 
 # ----------------------------------------------
-# Container Scanning
+# Container Scanning (requiert Docker Executor)
 # ----------------------------------------------
 container_scanning:
   rules:

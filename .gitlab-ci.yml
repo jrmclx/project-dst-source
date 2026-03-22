@@ -10,22 +10,21 @@ variables:
   FF_SCRIPT_SECTIONS: "true"
 
   MANUAL_MODE: false  # Permettre le déclenchement manuel des jobs (utile en test)
-  AUTO_DEPLOY: true
   EXECUTION_MODE: "docker"  # docker / shell
-  ENABLE_SAST: "true"
+  ENABLE_SAST: true
 
 
-# utlisation d'un Workflow pour ajuster les variables selon le type de Runner voulu
-workflow:
-  rules:
-    - if: '$EXECUTION_MODE == "docker"'
-      variables:
-        DOCKER_TLS_CERTDIR: "/certs"
-        DOCKER_TLS_VERIFY: "1"
-        DOCKER_CERT_PATH: "/certs/client"
-      when: always
+# # utlisation d'un Workflow pour ajuster les variables selon le type de Runner voulu
+# workflow:
+#   rules:
+#     - if: '$EXECUTION_MODE == "docker"'
+#       variables:
+#         DOCKER_TLS_CERTDIR: "/certs"
+#         DOCKER_TLS_VERIFY: "1"
+#         DOCKER_CERT_PATH: "/certs/client"
+#       when: always
 
-    - when: always
+#     - when: always
 
 
 stages:
@@ -33,53 +32,8 @@ stages:
   - build_push  # Build & Push child pipelines
 
 
-# Job Tags par défaut basé sur la variable $EXECUTION_MODE
-# Influence le choix du Runner par le tag : Shell ou Docker
-# Les runners doivent être tagués correctement 'shell-executor' ou 'docker-executor'
-default:
-  tags:
-    - ${EXECUTION_MODE}-executor
-
-
-# ----------------------------------------------
-# SAST code Scanning
-# ----------------------------------------------
-
-semgrep-sast:
-  rules:
-    - if: '$EXECUTION_MODE == "docker" && $ENABLE_SAST == "true"'
-  tags:
-    - docker-executor
-
-
-# ----------------------------------------------
-# Job Rules Templates
-# ----------------------------------------------
-
-.job_rules:
-  rules:
-    # déclencher si les fichiers du dossiers changent (matche aussi sur trigger, sans git diff)
-    # - if: '$CI_PIPELINE_SOURCE =~ /^(push|merge_request_event)$/'
-    - changes:
-        - $IMAGENAME/*
-        - $IMAGENAME/**/*
-    # fallback de déclenchement manuel si activé
-    - if: '$MANUAL_MODE =~ /^(1|true|yes)$/'
-      when: manual
-    # sinon, ne jamais déclencher
-    - when: never
-
-
-# ----------------------------------------------
-# Trigger Build, Run, Push child
-# ----------------------------------------------
-
-frontend_build:
+.frontend_def:
   stage: build_push
-  extends: .job_rules
-  trigger:
-    include: ".gitlab/ci/templates/build-template-dind.yml"
-    strategy: depend
   variables:
     # vérifie la valeur des variables et échoue si absentes. Vide ou "disabled" pour annuler le check.
     ENABLE_PRECHECK: false
@@ -89,13 +43,8 @@ frontend_build:
     CONTAINERPORT: 80
     URL_PATH: "/"
 
-
-backend_build:
+.backend_def:
   stage: build_push
-  extends: .job_rules
-  trigger:
-    include: ".gitlab/ci/templates/build-template-dind.yml"    # .gitlab/ci/templates/build-template.yml
-    strategy: depend
   variables:
     # vérifie la valeur des variables et échoue si absente. Vide ou "disabled" pour annuler le check.
     ENABLE_PRECHECK: false
@@ -107,6 +56,92 @@ backend_build:
 
 
 # ----------------------------------------------
-# Les images pushées sont detecteées par Kargo
-# Kargo organise ensuite la configuration de Deploiement et déclenche le pipeline
+# SAST code Scanning (requiert Docker Executor)
 # ----------------------------------------------
+
+semgrep-sast:
+  stage: test
+  rules:
+    - if: '$EXECUTION_MODE == "docker" && $ENABLE_SAST == "true"'
+  tags:
+    - docker-executor
+
+
+# --------------------------------------------------------------------------------------------
+# OPTION 1 : Utiliser un Runner en mode Docker Executor
+# --------------------------------------------------------------------------------------------
+
+.job_rules_docker:
+  rules:
+    # déclencher si les fichiers du dossiers changent (matche aussi sur trigger, sans git diff)
+    - if: '$EXECUTION_MODE == "docker"'
+      changes:
+        - $IMAGENAME/*
+        - $IMAGENAME/**/*
+    # fallback de déclenchement manuel si activé
+    - if: '$EXECUTION_MODE == "docker" && $MANUAL_MODE =~ /^(1|true|yes)$/'
+      when: manual
+    # sinon, ne jamais déclencher
+    - when: never
+  trigger:
+    include: ".gitlab/ci/templates/build-template-dind.yml"
+    strategy: depend
+
+
+# Trigger Build, Run, Push Frontend
+frontend_build_dind:
+  stage: build_push
+  extends:
+    - .job_rules_docker
+    - .frontend_def
+
+
+# Trigger Build, Run, Push Backend
+backend_build_dind:
+  stage: build_push
+  extends:
+    - .job_rules_docker
+    - .backend_def
+
+
+# --------------------------------------------------------------------------------------------
+# OPTION 2 : Utiliser un Runner en mode Shell Executor
+# --------------------------------------------------------------------------------------------
+
+.job_rules_shell:
+  rules:
+    # déclencher si les fichiers du dossiers changent (matche aussi sur trigger, sans git diff)
+    - if: '$EXECUTION_MODE == "shell"'
+      changes:
+        - $IMAGENAME/*
+        - $IMAGENAME/**/*
+    # fallback de déclenchement manuel si activé
+    - if: '$EXECUTION_MODE == "shell" && $MANUAL_MODE =~ /^(1|true|yes)$/'
+      when: manual
+    # sinon, ne jamais déclencher
+    - when: never
+  trigger:
+    include: ".gitlab/ci/templates/build-template-shell.yml"
+    strategy: depend
+
+
+# Trigger Build, Run, Push Frontend
+frontend_build_shell:
+  stage: build_push
+  extends:
+    - .job_rules_shell
+    - .frontend_def
+
+
+# Trigger Build, Run, Push Backend
+backend_build_shell:
+  stage: build_push
+  extends:
+    - .job_rules_shell
+    - .backend_def
+
+
+# --------------------------------------------------------------------------------------------
+# Les images pushées sont ensuite detecteées par Kargo
+# Kargo organise la configuration de deploiement et déclenche le pipeline
+# --------------------------------------------------------------------------------------------
