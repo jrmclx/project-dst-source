@@ -5,26 +5,11 @@ include:
 
 variables:
   TAG: $CI_COMMIT_SHORT_SHA
-  CHARTS_DIR: Helm
-  DEPLOY_PROJECT: projet_fastapi_deploy
   FF_SCRIPT_SECTIONS: "true"
 
   MANUAL_MODE: false  # Permettre le déclenchement manuel des jobs (utile en test)
   EXECUTION_MODE: "docker"  # docker / shell
   ENABLE_SAST: true
-
-
-# # utlisation d'un Workflow pour ajuster les variables selon le type de Runner voulu
-# workflow:
-#   rules:
-#     - if: '$EXECUTION_MODE == "docker"'
-#       variables:
-#         DOCKER_TLS_CERTDIR: "/certs"
-#         DOCKER_TLS_VERIFY: "1"
-#         DOCKER_CERT_PATH: "/certs/client"
-#       when: always
-
-#     - when: always
 
 
 stages:
