@@ -32,7 +32,7 @@ stages:
   stage: build_push
   variables:
     # vérifie la valeur des variables et échoue si absente. Vide ou "disabled" pour annuler le check.
-    ENABLE_PRECHECK: false
+    ENABLE_PRECHECK: true
     REQUIRED_VARS: "EXECUTION_MODE IMAGENAME TAG HOSTPORT CONTAINERPORT URL_PATH DOCKER_TLS_CERTDIR DOCKER_TLS_VERIFY DOCKER_CERT_PATH"    
     IMAGENAME: backend
     HOSTPORT: 7800
