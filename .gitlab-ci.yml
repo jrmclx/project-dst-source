@@ -48,8 +48,9 @@ workflow:
 
 
 stages:
-  - test        # Scan du code source (SAST)
-  - build_push  # Build & Push child pipelines
+  - test  # Scan du code source (SAST)
+  - backend_build
+  - frontend_build
 
 
 # Job Tags par défaut basé sur la variable $EXECUTION_MODE
@@ -78,7 +79,7 @@ semgrep-sast:
 .job_rules:
   rules:
     # déclencher si les fichiers du dossiers changent (matche aussi sur trigger, sans git diff)
-    # - if: '$CI_PIPELINE_SOURCE =~ /^(push|merge_request_event)$/'
+    - if: '$CI_PIPELINE_SOURCE =~ /^(push|merge_request_event)$/'
     - changes:
         - $IMAGENAME/*
         - $IMAGENAME/**/*
@@ -93,8 +94,8 @@ semgrep-sast:
 # Trigger Build, Run, Push child
 # ----------------------------------------------
 
-frontend_build:
-  stage: build_push
+frontend:
+  stage: frontend_build
   extends: .job_rules
   trigger:
     include: ".gitlab/ci/templates/build-template-dind.yml"
@@ -109,8 +110,8 @@ frontend_build:
     URL_PATH: "/"
 
 
-backend_build:
-  stage: build_push
+backend:
+  stage: backend_build
   extends: .job_rules
   trigger:
     include: ".gitlab/ci/templates/build-template-dind.yml"    # .gitlab/ci/templates/build-template.yml

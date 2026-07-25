@@ -141,7 +141,8 @@ container_scanning:
   tags:
     - docker-executor
   variables:
-    CS_IMAGE: $CI_REGISTRY_IMAGE/$IMAGENAME:$TAG
+    TEMP_TAG: "unchecked-$TAG" 
+    CS_IMAGE: $CI_REGISTRY_IMAGE/$IMAGENAME:$TEMP_TAG
 
 
 #----------------------------------------------
