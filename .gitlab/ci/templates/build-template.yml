@@ -20,8 +20,8 @@ stages:
   - pre_checks
   - build
   - run
+  - scan
   - push
-  - test
 
 
 default:
@@ -104,6 +104,31 @@ run_image:
     # nettoyer après le run
     - docker stop $IMAGENAME || true
     - docker rm $IMAGENAME || true
+
+
+# ----------------------------------------------
+# Container Scanning: Trivy
+# ----------------------------------------------
+trivy:
+  stage: scan
+  variables:
+    TRIVY_VERSION: "v0.72.0"    # latest
+    CS_IMAGE: $CI_REGISTRY_IMAGE/$IMAGENAME:$TAG
+  before_script:
+    - curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin $TRIVY_VERSION
+  script:
+    # Build report
+    - trivy image --exit-code 0 --format template --template "@/contrib/gitlab.tpl" -o gl-container-scanning-report.json $IMAGE
+    # Print report
+    - trivy image --exit-code 0 --severity HIGH $IMAGE
+    # Fail on severe vulnerabilities
+    - trivy image --exit-code 1 --severity CRITICAL $IMAGE
+  cache:
+    paths:
+      - .trivycache/
+  artifacts:
+    reports:
+      container_scanning: gl-container-scanning-report.json
 
 
 # ----------------------------------------------

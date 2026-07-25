@@ -19,10 +19,8 @@ include:
 stages:
   - pre_checks
   - build
-  - run
+  - scan
   - push
-  - test
-
 
 # variables déplacées dans le Worflow, pour appication conditionnelle.
 # variables:
@@ -47,9 +45,9 @@ upstream_var_checks:
 
 
 #----------------------------------------------
-# Construire l'image Docker et la taguer (compatible Shell et Docker)
+# Construire l'image Docker et lui appliquer un tag temporaire avant de la scanner
 #----------------------------------------------
-build_run_push:
+build_run_push_temp:
   stage: build
   image: docker:cli
   services:
@@ -71,17 +69,12 @@ build_run_push:
   script:
     # Build
     - |
-      TAG="${TAG:-tag-not-found}" 
-      echo "Building with tag: $TAG"
+      TEMP_TAG="unchecked-${TAG:-tag-not-found}" 
+      echo "Building with tag: $TEMP_TAG"
       
-      IMAGE="$CI_REGISTRY_IMAGE/$IMAGENAME:$TAG"
+      IMAGE="$CI_REGISTRY_IMAGE/$IMAGENAME:$TEMP_TAG"
       
       docker build -t "$IMAGE" ./$IMAGENAME
-      
-      if [ -n "$CI_COMMIT_TAG" ]; then
-        docker tag "$IMAGE" "$CI_REGISTRY_IMAGE/$IMAGENAME:latest"
-        docker tag "$IMAGE" "$CI_REGISTRY_IMAGE/$IMAGENAME:$CI_COMMIT_TAG"
-      fi
     
     # Run
     - |
@@ -139,12 +132,56 @@ build_run_push:
 
 
 # ----------------------------------------------
-# Container Scanning
+# Container Scanning: scanner l'image pour identifier les vulnérabilités
 # ----------------------------------------------
 container_scanning:
+  stage: scan
   rules:
     - if: '$EXECUTION_MODE == "docker"'
   tags:
     - docker-executor
   variables:
     CS_IMAGE: $CI_REGISTRY_IMAGE/$IMAGENAME:$TAG
+
+
+#----------------------------------------------
+# Taguer et pousser l'image avec ses tags définitifs
+#----------------------------------------------
+push_verified_image:
+  stage: push
+  image: docker:cli
+  services:
+    - docker:dind
+
+  before_script:
+    # s'identifier auprès du registre privé GitLab avant le Push
+    - echo "$CI_REGISTRY_PASSWORD" | docker login $CI_REGISTRY -u $CI_REGISTRY_USER --password-stdin
+    
+  script:
+    # Pull image avec le tag temporaire
+    - |
+      TEMP_TAG="unchecked-${TAG:-tag-not-found}"
+      echo "Pulling Tag: $TEMP_TAG"
+      
+      IMAGE="$CI_REGISTRY_IMAGE/$IMAGENAME:$TEMP_TAG"
+      
+      docker pull "$IMAGE"
+      docker tag "$IMAGE" "$CI_REGISTRY_IMAGE/$IMAGENAME:$TAG"
+      
+      if [ -n "$CI_COMMIT_TAG" ]; then
+        docker tag "$IMAGE" "$CI_REGISTRY_IMAGE/$IMAGENAME:latest"
+        docker tag "$IMAGE" "$CI_REGISTRY_IMAGE/$IMAGENAME:$CI_COMMIT_TAG"
+      fi
+
+    # Push image avec son tag final
+    - |
+      echo "Pushing $IMAGENAME to registry"
+      docker push "$IMAGE"
+    
+    # Push également le tag 'latest' si le tag Git du commit est défini
+    - |
+      if [ -n "$CI_COMMIT_TAG" ]; then
+        echo "Release TAG detected: pushing tags '$CI_COMMIT_TAG' and 'latest'"
+        docker push "$CI_REGISTRY_IMAGE/$IMAGENAME:latest"
+        docker push "$CI_REGISTRY_IMAGE/$IMAGENAME:$CI_COMMIT_TAG"
+      fi
