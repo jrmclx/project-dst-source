@@ -10,21 +10,40 @@ variables:
   FF_SCRIPT_SECTIONS: "true"
 
   MANUAL_MODE: false  # Permettre le déclenchement manuel des jobs (utile en test)
-  AUTO_DEPLOY: true
+  PIPELINE_NAME: "App build pipeline"
   EXECUTION_MODE: "docker"  # docker / shell
   ENABLE_SAST: "true"
 
 
 # utlisation d'un Workflow pour ajuster les variables selon le type de Runner voulu
 workflow:
+  name: '$PIPELINE_NAME'
   rules:
-    - if: '$EXECUTION_MODE == "docker"'
+    # Push avec changements du code source
+    - if: '$CI_PIPELINE_SOURCE == "push"'
+      changes:
+        - frontend/**/*
+        - backend/**/*
       variables:
-        DOCKER_TLS_CERTDIR: "/certs"
-        DOCKER_TLS_VERIFY: "1"
-        DOCKER_CERT_PATH: "/certs/client"
-      when: always
+        PIPELINE_NAME: 'Updated source code on $CI_COMMIT_REF_NAME: commit $CI_COMMIT_SHORT_SHA'
+    
+    # Push avec changements des outils optionels du cluster
+    - if: '$CI_PIPELINE_SOURCE == "push"'
+      variables:
+        PIPELINE_NAME: 'Updated CI code'
 
+    # Merge Request
+    - if: '$CI_MERGE_REQUEST_TARGET_BRANCH_NAME == $CI_DEFAULT_BRANCH'
+      variables:
+        PIPELINE_NAME: 'MR pipeline: $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME'
+    
+    # Déclenchement manuel via Web UI: Passer tous les déploiements en manuel car aucun push pour évaluer les conditions 'changes'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+      variables:
+        PIPELINE_NAME: 'Manual pipeline on $CI_COMMIT_REF_NAME'
+        MANUAL_MODE: true
+
+    # Bloqué dans tout autre cas
     - when: always
 
 
