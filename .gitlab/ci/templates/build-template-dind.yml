@@ -49,9 +49,9 @@ upstream_var_checks:
 #----------------------------------------------
 build_run_push_temp:
   stage: build
-  image: docker:cli
+  image: docker:29.6.2-cli
   services:
-    - docker:dind
+    - docker:29.6.2-dind
 
   before_script:
     # s'identifier auprès du registre privé GitLab avant le Push
@@ -142,9 +142,9 @@ container_scanning:
 #----------------------------------------------
 push_verified_image:
   stage: push
-  image: docker:cli
+  image: docker:29.6.2-cli
   services:
-    - docker:dind
+    - docker:29.6.2-dind
 
   before_script:
     # s'identifier auprès du registre privé GitLab avant le Push
