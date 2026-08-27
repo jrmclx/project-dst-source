@@ -52,7 +52,10 @@ build_run_push_temp:
   image: docker:29.6.2-cli
   services:
     - docker:29.6.2-dind
-
+  variables:
+    BUILDX_NO_DEFAULT_ATTESTATIONS: "1"
+    # see: https://support.gitlab.com/hc/en-us/articles/29426166749596-Push-to-Container-Registry-Fails-Error-error-from-registry-blob-unknown-to-registry
+  
   before_script:
     # s'identifier auprès du registre privé GitLab avant le Push
     - echo "$CI_REGISTRY_PASSWORD" | docker login $CI_REGISTRY -u $CI_REGISTRY_USER --password-stdin
