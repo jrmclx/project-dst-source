@@ -121,15 +121,6 @@ build_run_push_temp:
     - |
       echo "Pushing $IMAGENAME to registry"
       docker push "$IMAGE"
-    
-    # Push également le tag 'latest' si le tag Git du commit est défini
-    - |
-      if [ -n "$CI_COMMIT_TAG" ]; then
-        echo "Release TAG detected: pushing tags '$CI_COMMIT_TAG' and 'latest'"
-        docker push "$CI_REGISTRY_IMAGE/$IMAGENAME:latest"
-        docker push "$CI_REGISTRY_IMAGE/$IMAGENAME:$CI_COMMIT_TAG"
-      fi
-
 
 # ----------------------------------------------
 # Container Scanning: scanner l'image pour identifier les vulnérabilités
