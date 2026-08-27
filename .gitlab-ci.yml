@@ -80,7 +80,7 @@ semgrep-sast:
   rules:
     # déclencher si les fichiers du dossiers changent (matche aussi sur trigger, sans git diff)
     - if: '$CI_PIPELINE_SOURCE =~ /^(push|merge_request_event)$/'
-    - changes:
+      changes:
         - $IMAGENAME/*
         - $IMAGENAME/**/*
     # fallback de déclenchement manuel si activé
